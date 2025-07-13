@@ -1,145 +1,113 @@
-# ❄️ tinytim_rs
 
-A **tiny, fast, Rust-backed transformation core** for Python table data.  
-Designed to replace or accelerate Python-based data logic, seamlessly integrates with your `tinytable` style APIs.
+# 🪶 feathertail
+
+High-performance Python DataFrame library powered by Rust, designed for flexibility, speed, and clear schema handling.
 
 ---
 
-## 💥 Features
+## ✨ Features
 
-- 🚀 Super fast Rust backend
-- ✅ Type-safe columns (`Int`, `Float`, `Str`, `Bool`, placeholders)
-- 🔗 Join support
-- 🔬 GroupBy with advanced aggregations: `count`, `sum`, `mean`, `min`, `max`, `median`, `std`
-- 🧪 Fill missing values
-- ✂️ Drop & rename columns
-- 🛠️ Edit columns with Python functions
-- 🔄 Convert to/from Python list-of-dicts
+- ✅ Build `TinyFrame` from Python dict records (`from_dicts`)
+- ✅ Support for nested types (`Mixed`, `OptMixed`) and optional columns
+- ✅ Automatic type inference
+- ✅ Fill missing values (`fillna`)
+- ✅ Cast columns to different types (`cast_column`)
+- ✅ Edit columns with custom Python functions (`edit_column`)
+- ✅ Drop or rename columns
+- ✅ Simple group-by aggregations with `TinyGroupBy`
+- ✅ Export to Python dicts (`to_dicts`)
+- ✅ Lightweight, fast, and pure Rust core
 
 ---
 
 ## 📦 Installation
 
 ```bash
-pip install tinytim_rs
+pip install feathertail
 ```
 
-Or, if developing locally:
+Or, from local source:
 
 ```bash
-maturin develop
+pip install -e .
 ```
 
 ---
 
-## 🧑‍💻 Basic usage
+## 🧑‍💻 Usage
 
 ```python
-from tinytim_rs import TinyFrame
+import feathertail as ft
 
-data = {
-    "id": [1, 2, 3],
-    "name": ["alice", "bob", "carol"],
-    "score": [100.0, None, 85.5],
-}
-
-frame = TinyFrame(data)
-
-# Fill missing
-frame.fillna({"score": 0})
-
-# Edit column
-frame.edit_column("name", lambda x: x.upper())
-
-# Drop columns
-frame.drop_columns(["id"])
-
-# Rename column
-frame.rename_column("score", "final_score")
-
-print(frame.columns())
-print(frame.to_dicts())
-```
-
----
-
-## 🔗 Joins
-
-```python
-left = TinyFrame({
-    "id": [1, 2, 3],
-    "val_l": [10, 20, 30],
-})
-
-right = TinyFrame({
-    "id": [2, 3, 4],
-    "val_r": [200, 300, 400],
-})
-
-joined = left.join(right, ["id"])
-print(joined.to_dicts())
-```
-
----
-
-## 🔬 GroupBy
-
-```python
-data = {
-    "group": ["A", "A", "B", "B", "A"],
-    "value": [10, 20, 30, 40, 5],
-}
-
-frame = TinyFrame(data)
-gb = frame.groupby(["group"])
-
-print("Count:", gb.count().to_dicts())
-print("Sum:", gb.sum().to_dicts())
-print("Mean:", gb.mean().to_dicts())
-print("Min:", gb.min().to_dicts())
-print("Max:", gb.max().to_dicts())
-print("Median:", gb.median().to_dicts())
-print("Std:", gb.std().to_dicts())
-```
-
----
-
-## 🔄 From and to dicts
-
-```python
 records = [
-    {"id": 1, "value": 10},
-    {"id": 2, "value": None},
+    {"name": "Alice", "age": 30, "city": "New York", "score": 95.5},
+    {"name": "Bob", "age": None, "city": "Paris", "score": 85.0},
+    {"name": "Charlie", "age": 25, "city": "New York", "score": None},
 ]
 
-frame = TinyFrame.from_dicts(records)
+# Create frame
+frame = ft.TinyFrame.from_dicts(records)
+
+print(frame)
 print(frame.to_dicts())
+
+# Fill missing values
+frame.fillna({"age": 20, "score": 0.0})
+print(frame.to_dicts())
+
+# Cast score column to float explicitly
+frame.cast_column("score", float)
+
+# Edit city column to uppercase
+frame.edit_column("city", lambda x: x.upper() if x else x)
+print(frame.to_dicts())
+
+# Drop score column
+frame.drop_columns(["score"])
+print(frame.to_dicts())
+
+# Rename name column
+frame.rename_column("name", "full_name")
+print(frame.to_dicts())
+
+# Group by city
+groupby = ft.TinyGroupBy(frame, keys=["city"])
+print(groupby.key_list)
+print(groupby.group_map)
+
+# Count per group
+count_frame = groupby.count(frame)
+print(count_frame.to_dicts())
 ```
 
 ---
 
-## 💡 Placeholder columns
+## ⚙️ Supported Types
 
-If you have columns with arbitrary Python objects, you can convert them to integer placeholder IDs for Rust operations, then rehydrate after.  
-Ask for an example snippet if you'd like help!
+| Type      | Column variant  |
+|------------|---------------|
+| int        | `Int`, `OptInt` |
+| float      | `Float`, `OptFloat` |
+| bool       | `Bool`, `OptBool` |
+| str        | `Str`, `OptStr` |
+| mixed      | `Mixed`, `OptMixed` |
 
 ---
 
-## 🗺️ Roadmap
+## 🐉 Why "feathertail"?
 
-- More join types (`left`, `outer`)
-- Optional Arrow-based speedups
-- Parallel groupby
+In *Fourth Wing*, "feathertail" refers to a juvenile stage of dragons — smaller, golden, and known for their feathery tails rather than weaponized ones. Feathertail dragons, like Andarna, are characterized by gentleness, non-violence, and an elegant simplicity.
+
+This library embodies those same principles: lightweight, non-destructive, and focused on providing clean, powerful tools for data transformation without heavy dependencies or unnecessary complexity.
 
 ---
 
 ## ❤️ Contributing
 
-Open issues or PRs welcome!  
-Designed to stay **tiny**, so proposals should focus on core speed and simplicity.
+Contributions and ideas are always welcome! Open an issue or a pull request.
 
 ---
 
-## ⚖️ License
+## 📄 License
 
 MIT
