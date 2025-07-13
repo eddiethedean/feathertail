@@ -1,0 +1,15 @@
+[package]
+name = "feathertail"
+version = "0.1.0"
+edition = "2021"
+description = "A tiny, fast, Rust-backed transformation core for Python table data"
+authors = ["Odos Matthews odosmatthews@gmail.com"]
+license = "MIT"
+
+[lib]
+name = "feathertail"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.21", features = ["extension-module"] }
+serde_json = "1.0"
