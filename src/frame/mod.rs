@@ -34,6 +34,11 @@ pub enum TinyColumn {
     OptPyObject(Vec<Option<u64>>),
 }
 
+/// TinyFrame
+///
+/// A fast, flexible DataFrame-like structure implemented in Rust for Python.
+///
+/// Supports type inference, optional and mixed columns, fillna, casting, editing, and row-wise iteration.
 #[pyclass]
 #[derive(Clone)]
 pub struct TinyFrame {
@@ -44,7 +49,9 @@ pub struct TinyFrame {
 
 #[pymethods]
 impl TinyFrame {
+    /// Create a new empty TinyFrame.
     #[new]
+    #[pyo3(text_signature = "()")]
     fn new() -> Self {
         TinyFrame {
             columns: HashMap::new(),
@@ -53,27 +60,57 @@ impl TinyFrame {
         }
     }
 
+    /// Create a TinyFrame from a list of Python dictionaries.
+    ///
+    /// Args:
+    ///     records (List[dict]): List of Python dictionaries.
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame inferred from the records.
     #[staticmethod]
+    #[pyo3(text_signature = "(records)")]
     fn from_dicts(py: Python, records: &PyAny) -> PyResult<Self> {
         convert::from_dicts_impl(py, records)
     }
 
+    /// Convert the TinyFrame to a list of dictionaries.
+    ///
+    /// Returns:
+    ///     List[dict]: Frame data as a list of dicts.
     fn to_dicts(&self, py: Python) -> PyResult<Vec<PyObject>> {
         convert::to_dicts_impl(self, py)
     }
 
+    /// Fill missing (None) values in the frame.
+    ///
+    /// Args:
+    ///     value (dict or scalar): Dictionary mapping column names to fill values or a single scalar value.
     fn fillna(&mut self, py: Python, value: &PyAny) -> PyResult<()> {
         fillna::fillna_impl(self, py, value)
     }
 
+    /// Cast a column to a different type.
+    ///
+    /// Args:
+    ///     column_name (str): Name of the column.
+    ///     new_type (type): Target Python type (e.g., int, float, str, bool).
     fn cast_column(&mut self, py: Python, column_name: String, new_type: &PyAny) -> PyResult<()> {
         cast::cast_column_impl(self, py, column_name, new_type)
     }
 
+    /// Edit a column using a custom Python function.  
+    ///
+    /// Args:
+    ///     column_name (str): Name of the column.
+    ///     func (callable): Python function to apply to each value.
     fn edit_column(&mut self, py: Python, column_name: String, func: PyObject) -> PyResult<()> {
         edit::edit_column_impl(self, py, column_name, func)
     }
 
+    /// Drop specified columns from the frame.
+    ///
+    /// Args:
+    ///     columns_to_drop (List[str]): List of column names to remove.
     fn drop_columns(&mut self, columns_to_drop: Vec<String>) -> PyResult<()> {
         for col_name in columns_to_drop {
             self.columns.remove(&col_name);
@@ -81,6 +118,11 @@ impl TinyFrame {
         Ok(())
     }
 
+    /// Rename a column.
+    ///
+    /// Args:
+    ///     old_name (str): Original column name.
+    ///     new_name (str): New column name.
     fn rename_column(&mut self, old_name: String, new_name: String) -> PyResult<()> {
         if !self.columns.contains_key(&old_name) {
             return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", old_name)));
@@ -93,19 +135,32 @@ impl TinyFrame {
         Ok(())
     }
 
+    /// Return the number of rows.
+    ///
+    /// Returns:
+    ///     int: Number of rows in the frame.
     fn len(&self) -> usize {
         self.length
     }
 
+    /// Check if the frame is empty.
+    ///
+    /// Returns:
+    ///     bool: True if empty, False otherwise.
     fn is_empty(&self) -> bool {
         self.length == 0
     }
 
+    /// Shape of the frame (rows, columns).
+    ///
+    /// Returns:
+    ///     Tuple[int, int]: (number of rows, number of columns).
     #[getter]
     fn shape(&self) -> (usize, usize) {
         (self.length, self.columns.len())
     }
 
+    /// Return string representation of the frame.
     fn __repr__(&self) -> String {
         let mut col_strs = Vec::new();
         for (name, col) in &self.columns {
@@ -133,10 +188,9 @@ impl TinyFrame {
         )
     }
 
-    fn __iter__(slf: PyRef<Self>) -> PyResult<Py<TinyFrameRowIter>> {
-        let py = slf.py();                // ✅ Get Python context first
-        let iter = TinyFrameRowIter::new(slf.into());
-        Py::new(py, iter)
+    /// Iterate over rows as dictionaries.
+    fn __iter__(slf: PyRef<Self>) -> PyResult<crate::frame::iter::TinyFrameRowIter> {
+        Ok(crate::frame::iter::TinyFrameRowIter::new(slf))
     }
 }
 
