@@ -8,15 +8,15 @@ High-performance Python DataFrame library powered by Rust, designed for flexibil
 ## ✨ Features
 
 - ✅ Build `TinyFrame` from Python dict records (`from_dicts`)
-- ✅ Support for nested types (`Mixed`, `OptMixed`) and optional columns
-- ✅ Automatic type inference
+- ✅ Automatic type inference and mixed type handling
+- ✅ Support for optional and mixed columns, with fallback to PyObject if needed
 - ✅ Fill missing values (`fillna`)
 - ✅ Cast columns to different types (`cast_column`)
-- ✅ Edit columns with custom Python functions (`edit_column`)
+- ✅ Edit columns flexibly with type-adapting edits (`edit_column`)
 - ✅ Drop or rename columns
 - ✅ Simple group-by aggregations with `TinyGroupBy`
 - ✅ Export to Python dicts (`to_dicts`)
-- ✅ Lightweight, fast, and pure Rust core
+- ✅ Lightweight, fast, pure Rust core
 
 ---
 
@@ -45,39 +45,72 @@ records = [
     {"name": "Charlie", "age": 25, "city": "New York", "score": None},
 ]
 
-# Create frame
 frame = ft.TinyFrame.from_dicts(records)
-
 print(frame)
 print(frame.to_dicts())
+```
 
-# Fill missing values
+**Output:**
+```
+TinyFrame(rows=3, columns=4, cols={ 'name': 'Str', 'age': 'OptInt', 'city': 'Str', 'score': 'OptFloat' })
+[{'name': 'Alice', 'age': 30, 'city': 'New York', 'score': 95.5}, ...]
+```
+
+```python
 frame.fillna({"age": 20, "score": 0.0})
 print(frame.to_dicts())
+```
 
-# Cast score column to float explicitly
+**Output:**
+```
+[{'name': 'Alice', 'age': 30, 'city': 'New York', 'score': 95.5}, {'name': 'Bob', 'age': 20, 'city': 'Paris', 'score': 85.0}, {'name': 'Charlie', 'age': 25, 'city': 'New York', 'score': 0.0}]
+```
+
+```python
 frame.cast_column("score", float)
-
-# Edit city column to uppercase
 frame.edit_column("city", lambda x: x.upper() if x else x)
 print(frame.to_dicts())
+```
 
-# Drop score column
+**Output:**
+```
+[{'name': 'Alice', 'age': 30, 'city': 'NEW YORK', 'score': 95.5}, ...]
+```
+
+```python
 frame.drop_columns(["score"])
 print(frame.to_dicts())
+```
 
-# Rename name column
+**Output:**
+```
+[{'name': 'Alice', 'age': 30, 'city': 'NEW YORK'}, ...]
+```
+
+```python
 frame.rename_column("name", "full_name")
 print(frame.to_dicts())
+```
 
-# Group by city
+**Output:**
+```
+[{'full_name': 'Alice', 'age': 30, 'city': 'NEW YORK'}, ...]
+```
+
+```python
 groupby = ft.TinyGroupBy(frame, keys=["city"])
-print(groupby.key_list)
-print(groupby.group_map)
+print(groupby.keys)
+print(groupby.groups)
+```
 
-# Count per group
+```python
 count_frame = groupby.count(frame)
 print(count_frame.to_dicts())
+```
+
+**Output:**
+```
+[{'city': 'NEW YORK', 'count': 2}, {'city': 'PARIS', 'count': 1}]
 ```
 
 ---
