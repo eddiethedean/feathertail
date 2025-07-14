@@ -1,11 +1,10 @@
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
 use std::collections::HashMap;
 
-pub mod cast;
 pub mod convert;
-pub mod edit;
 pub mod fillna;
+pub mod cast;
+pub mod edit;
 
 #[derive(Clone)]
 pub enum ValueEnum {
@@ -13,7 +12,7 @@ pub enum ValueEnum {
     Float(f64),
     Str(String),
     Bool(bool),
-    PyObjectId(u64), // fallback python object reference by id
+    PyObjectId(u64), // fallback identifier for unconvertible Python objects
 }
 
 #[derive(Clone)]
@@ -28,13 +27,15 @@ pub enum TinyColumn {
     OptBool(Vec<Option<bool>>),
     Mixed(Vec<ValueEnum>),
     OptMixed(Vec<Option<ValueEnum>>),
+    PyObject(Vec<u64>),
+    OptPyObject(Vec<Option<u64>>),
 }
 
 #[pyclass]
 pub struct TinyFrame {
     pub columns: HashMap<String, TinyColumn>,
     pub length: usize,
-    pub py_objects: HashMap<u64, PyObject>, // fallback Python object storage
+    pub py_objects: HashMap<u64, PyObject>, // new: stores actual Python objects for fallback
 }
 
 #[pymethods]
@@ -55,11 +56,6 @@ impl TinyFrame {
 
     fn to_dicts(&self, py: Python) -> PyResult<Vec<PyObject>> {
         convert::to_dicts_impl(self, py)
-    }
-
-    #[getter]
-    fn shape(&self) -> (usize, usize) {
-        (self.length, self.columns.len())
     }
 
     fn fillna(&mut self, py: Python, value: &PyAny) -> PyResult<()> {
@@ -101,6 +97,11 @@ impl TinyFrame {
         self.length == 0
     }
 
+    #[getter]
+    fn shape(&self) -> (usize, usize) {
+        (self.length, self.columns.len())
+    }
+
     fn __repr__(&self) -> String {
         let mut col_strs = Vec::new();
         for (name, col) in &self.columns {
@@ -115,6 +116,8 @@ impl TinyFrame {
                 TinyColumn::OptBool(_) => "OptBool",
                 TinyColumn::Mixed(_) => "Mixed",
                 TinyColumn::OptMixed(_) => "OptMixed",
+                TinyColumn::PyObject(_) => "PyObject",
+                TinyColumn::OptPyObject(_) => "OptPyObject",
             };
             col_strs.push(format!("'{}': '{}'", name, type_str));
         }

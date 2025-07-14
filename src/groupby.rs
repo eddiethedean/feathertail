@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use crate::frame::{TinyColumn, TinyFrame};
 
 #[pyclass]
@@ -22,6 +22,7 @@ impl TinyGroupBy {
                 PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Key column '{}' not found", key))
             })?;
 
+            // For now, only string columns can be used as keys
             let col_strings: Vec<Option<String>> = match col {
                 TinyColumn::Str(v) => v.iter().map(|s| Some(s.clone())).collect(),
                 TinyColumn::OptStr(v) => v.clone(),
@@ -66,7 +67,7 @@ impl TinyGroupBy {
         Ok(TinyFrame {
             columns,
             length: self.groups.len(),
-            py_objects: HashMap::new(), // <-- ✅ added missing field
+            py_objects: frame.py_objects.clone(),
         })
     }
 

@@ -7,6 +7,13 @@ pub fn cast_column_impl(frame: &mut TinyFrame, py: Python, column_name: String, 
         PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column_name))
     })?;
 
+    // 🔒 Block casting on Mixed and OptMixed columns
+    if matches!(col, TinyColumn::Mixed(_) | TinyColumn::OptMixed(_)) {
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+            "Cannot cast Mixed or OptMixed columns containing fallback Python objects",
+        ));
+    }
+
     if new_type.is(py.get_type::<PyString>()) {
         match col {
             TinyColumn::OptStr(_) | TinyColumn::Str(_) => {}

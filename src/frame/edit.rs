@@ -67,9 +67,9 @@ fn edit_column_logic(col: &mut TinyColumn, py: Python, func: PyObject) -> PyResu
                 *v = if out_obj.is_none(py) { None } else { Some(out_obj.extract(py)?) };
             }
         }
-        TinyColumn::Mixed(_) | TinyColumn::OptMixed(_) => {
+        TinyColumn::Mixed(_) | TinyColumn::OptMixed(_) | TinyColumn::PyObject(_) | TinyColumn::OptPyObject(_) => {
             return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                "edit_column is not supported for Mixed and OptMixed columns yet",
+                "edit_column is not supported for Mixed, OptMixed, PyObject, or OptPyObject columns",
             ));
         }
     }
