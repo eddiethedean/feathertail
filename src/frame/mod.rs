@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use crate::frame::iter::TinyFrameRowIter;
+use crate::column::TinyCol;
 
 
 pub mod cast;
@@ -191,6 +192,21 @@ impl TinyFrame {
     /// Iterate over rows as dictionaries.
     fn __iter__(slf: PyRef<Self>) -> PyResult<crate::frame::iter::TinyFrameRowIter> {
         Ok(crate::frame::iter::TinyFrameRowIter::new(slf.into()))
+    }
+
+    fn col(&self, py: Python, name: String) -> PyResult<Py<TinyCol>> {
+        if !self.columns.contains_key(&name) {
+            return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", name)));
+        }
+
+        let frame_clone = self.clone();
+        let py_frame = Py::new(py, frame_clone)?;
+
+        let col = TinyCol {
+            name,
+            frame: py_frame,
+        };
+        Py::new(py, col)
     }
 }
 

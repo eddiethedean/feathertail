@@ -1,4 +1,5 @@
 pub mod frame;
+pub mod column;
 mod groupby;
 mod join;
 mod utils;
