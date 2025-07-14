@@ -63,7 +63,11 @@ impl TinyGroupBy {
         }
         columns.insert("count".to_string(), TinyColumn::OptInt(count_column));
 
-        Ok(TinyFrame { columns, length: self.groups.len() })
+        Ok(TinyFrame {
+            columns,
+            length: self.groups.len(),
+            py_objects: HashMap::new(), // <-- ✅ added missing field
+        })
     }
 
     #[getter]

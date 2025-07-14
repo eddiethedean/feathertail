@@ -1,4 +1,4 @@
-use crate::frame::{TinyColumn, TinyFrame, ValueEnum};
+use crate::frame::{TinyColumn, ValueEnum};
 use pyo3::prelude::*;
 
 pub fn stringify_column(col: &TinyColumn, idx: usize) -> String {
@@ -16,12 +16,14 @@ pub fn stringify_column(col: &TinyColumn, idx: usize) -> String {
             ValueEnum::Float(x) => x.to_string(),
             ValueEnum::Bool(x) => x.to_string(),
             ValueEnum::Str(x) => x.clone(),
+            ValueEnum::PyObjectId(id) => format!("<py_object:{}>", id), // ✅ added
         },
         TinyColumn::OptMixed(v) => match &v[idx] {
             Some(ValueEnum::Int(x)) => x.to_string(),
             Some(ValueEnum::Float(x)) => x.to_string(),
             Some(ValueEnum::Bool(x)) => x.to_string(),
             Some(ValueEnum::Str(x)) => x.clone(),
+            Some(ValueEnum::PyObjectId(id)) => format!("<py_object:{}>", id), // ✅ added
             None => "None".to_string(),
         },
     }

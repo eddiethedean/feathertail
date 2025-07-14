@@ -1,10 +1,11 @@
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 use std::collections::HashMap;
 
-pub mod convert;
-pub mod fillna;
 pub mod cast;
+pub mod convert;
 pub mod edit;
+pub mod fillna;
 
 #[derive(Clone)]
 pub enum ValueEnum {
@@ -12,6 +13,7 @@ pub enum ValueEnum {
     Float(f64),
     Str(String),
     Bool(bool),
+    PyObjectId(u64), // fallback python object reference by id
 }
 
 #[derive(Clone)]
@@ -32,6 +34,7 @@ pub enum TinyColumn {
 pub struct TinyFrame {
     pub columns: HashMap<String, TinyColumn>,
     pub length: usize,
+    pub py_objects: HashMap<u64, PyObject>, // fallback Python object storage
 }
 
 #[pymethods]
@@ -41,6 +44,7 @@ impl TinyFrame {
         TinyFrame {
             columns: HashMap::new(),
             length: 0,
+            py_objects: HashMap::new(),
         }
     }
 
@@ -51,6 +55,11 @@ impl TinyFrame {
 
     fn to_dicts(&self, py: Python) -> PyResult<Vec<PyObject>> {
         convert::to_dicts_impl(self, py)
+    }
+
+    #[getter]
+    fn shape(&self) -> (usize, usize) {
+        (self.length, self.columns.len())
     }
 
     fn fillna(&mut self, py: Python, value: &PyAny) -> PyResult<()> {
@@ -90,11 +99,6 @@ impl TinyFrame {
 
     fn is_empty(&self) -> bool {
         self.length == 0
-    }
-
-    #[getter]
-    fn shape(&self) -> (usize, usize) {
-        (self.length, self.columns.len())
     }
 
     fn __repr__(&self) -> String {
