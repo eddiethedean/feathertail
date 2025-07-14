@@ -1,10 +1,13 @@
 use pyo3::prelude::*;
 use std::collections::HashMap;
+use crate::frame::iter::TinyFrameRowIter;
 
-pub mod convert;
-pub mod fillna;
+
 pub mod cast;
+pub mod convert;
 pub mod edit;
+pub mod fillna;
+pub mod iter;
 
 #[derive(Clone)]
 pub enum ValueEnum {
@@ -32,10 +35,11 @@ pub enum TinyColumn {
 }
 
 #[pyclass]
+#[derive(Clone)]
 pub struct TinyFrame {
     pub columns: HashMap<String, TinyColumn>,
     pub length: usize,
-    pub py_objects: HashMap<u64, PyObject>, // New: store actual fallback Python objects
+    pub py_objects: HashMap<u64, PyObject>,
 }
 
 #[pymethods]
@@ -127,5 +131,25 @@ impl TinyFrame {
             col_strs.len(),
             col_strs.join(", ")
         )
+    }
+
+    fn __iter__(slf: PyRef<Self>) -> PyResult<Py<TinyFrameRowIter>> {
+        let py = slf.py();                // ✅ Get Python context first
+        let iter = TinyFrameRowIter::new(slf.into());
+        Py::new(py, iter)
+    }
+}
+
+impl ValueEnum {
+    pub fn to_py(&self, py: Python, py_objects: &HashMap<u64, PyObject>) -> PyObject {
+        match self {
+            ValueEnum::Int(v) => v.into_py(py),
+            ValueEnum::Float(v) => v.into_py(py),
+            ValueEnum::Str(v) => v.clone().into_py(py),
+            ValueEnum::Bool(v) => v.into_py(py),
+            ValueEnum::PyObjectId(id) => {
+                py_objects.get(id).map(|o| o.clone_ref(py)).unwrap_or_else(|| py.None())
+            }
+        }
     }
 }

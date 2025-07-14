@@ -1,6 +1,6 @@
 [package]
 name = "feathertail"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "A tiny, fast, Rust-backed transformation core for Python table data"
 authors = ["Odos Matthews odosmatthews@gmail.com"]
