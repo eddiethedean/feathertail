@@ -190,7 +190,7 @@ impl TinyFrame {
 
     /// Iterate over rows as dictionaries.
     fn __iter__(slf: PyRef<Self>) -> PyResult<crate::frame::iter::TinyFrameRowIter> {
-        Ok(crate::frame::iter::TinyFrameRowIter::new(slf))
+        Ok(crate::frame::iter::TinyFrameRowIter::new(slf.into()))
     }
 }
 
