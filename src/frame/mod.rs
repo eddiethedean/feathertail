@@ -12,7 +12,7 @@ pub enum ValueEnum {
     Float(f64),
     Str(String),
     Bool(bool),
-    PyObjectId(u64), // fallback identifier for unconvertible Python objects
+    PyObjectId(u64),
 }
 
 #[derive(Clone)]
@@ -35,7 +35,7 @@ pub enum TinyColumn {
 pub struct TinyFrame {
     pub columns: HashMap<String, TinyColumn>,
     pub length: usize,
-    pub py_objects: HashMap<u64, PyObject>, // new: stores actual Python objects for fallback
+    pub py_objects: HashMap<u64, PyObject>, // New: store actual fallback Python objects
 }
 
 #[pymethods]
