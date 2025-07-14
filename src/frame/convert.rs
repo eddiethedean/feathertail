@@ -24,40 +24,36 @@ pub fn from_dicts_impl(py: Python, records: &PyAny) -> PyResult<TinyFrame> {
         let mut value_enum_vals: Vec<Option<ValueEnum>> = Vec::new();
 
         for row in &records_list {
-            let val = match row.get_item(col) {
-                Ok(Some(v)) => v,
-                Ok(None) => {
+            let val_opt = row.get_item(col);
+
+            if let Ok(Some(val)) = val_opt {
+                if val.is_none() {
                     has_none = true;
                     value_enum_vals.push(None);
                     continue;
                 }
-                Err(e) => return Err(e),
-            };
 
-            if val.is_none() {
+                if val.is_instance(py.get_type::<pyo3::types::PyBool>())? {
+                    types_present.insert("Bool");
+                    value_enum_vals.push(Some(ValueEnum::Bool(val.extract()?)));
+                } else if val.is_instance(py.get_type::<pyo3::types::PyLong>())? {
+                    types_present.insert("Int");
+                    value_enum_vals.push(Some(ValueEnum::Int(val.extract()?)));
+                } else if val.is_instance(py.get_type::<pyo3::types::PyFloat>())? {
+                    types_present.insert("Float");
+                    value_enum_vals.push(Some(ValueEnum::Float(val.extract()?)));
+                } else if val.is_instance(py.get_type::<pyo3::types::PyString>())? {
+                    types_present.insert("Str");
+                    value_enum_vals.push(Some(ValueEnum::Str(val.extract()?)));
+                } else {
+                    let obj_id = val.as_ptr() as u64;
+                    py_objects.insert(obj_id, val.into());
+                    types_present.insert("PyObject");
+                    value_enum_vals.push(Some(ValueEnum::PyObjectId(obj_id)));
+                }
+            } else {
                 has_none = true;
                 value_enum_vals.push(None);
-                continue;
-            }
-
-            if val.is_instance(py.get_type::<pyo3::types::PyBool>())? {
-                types_present.insert("Bool");
-                value_enum_vals.push(Some(ValueEnum::Bool(val.extract()?)));
-            } else if val.is_instance(py.get_type::<pyo3::types::PyLong>())? {
-                types_present.insert("Int");
-                value_enum_vals.push(Some(ValueEnum::Int(val.extract()?)));
-            } else if val.is_instance(py.get_type::<pyo3::types::PyFloat>())? {
-                types_present.insert("Float");
-                value_enum_vals.push(Some(ValueEnum::Float(val.extract()?)));
-            } else if val.is_instance(py.get_type::<pyo3::types::PyString>())? {
-                types_present.insert("Str");
-                value_enum_vals.push(Some(ValueEnum::Str(val.extract()?)));
-            } else {
-                // Fallback to PyObject id
-                let obj_id = val.getattr("__hash__").ok().and_then(|h| h.extract::<u64>().ok()).unwrap_or_else(|| id_fallback(&val));
-                py_objects.insert(obj_id, val.into());
-                types_present.insert("PyObject");
-                value_enum_vals.push(Some(ValueEnum::PyObjectId(obj_id)));
             }
         }
 
@@ -80,17 +76,18 @@ pub fn from_dicts_impl(py: Python, records: &PyAny) -> PyResult<TinyFrame> {
                 _ => unreachable!(),
             }
         } else {
-            TinyColumn::Mixed(value_enum_vals.into_iter().map(|x| x.unwrap()).collect())
+            // If mixed and has None, use OptMixed
+            if has_none {
+                TinyColumn::OptMixed(value_enum_vals)
+            } else {
+                TinyColumn::Mixed(value_enum_vals.into_iter().map(|x| x.expect("Unexpected None in Mixed column")).collect())
+            }
         };
 
         columns.insert(col.clone(), final_col);
     }
 
     Ok(TinyFrame { columns, length: num_rows, py_objects })
-}
-
-fn id_fallback(obj: &PyAny) -> u64 {
-    obj.as_ptr() as u64
 }
 
 pub fn to_dicts_impl(frame: &TinyFrame, py: Python) -> PyResult<Vec<PyObject>> {
@@ -109,10 +106,10 @@ pub fn to_dicts_impl(frame: &TinyFrame, py: Python) -> PyResult<Vec<PyObject>> {
                 TinyColumn::OptStr(v) => v[i].clone().map_or(py.None(), |x| x.into_py(py)),
                 TinyColumn::PyObject(v) => {
                     let id = v[i];
-                    frame.py_objects.get(&id).cloned().unwrap_or(py.None())
+                    frame.py_objects.get(&id).cloned().unwrap_or_else(|| py.None())
                 }
                 TinyColumn::OptPyObject(v) => match v[i] {
-                    Some(id) => frame.py_objects.get(&id).cloned().unwrap_or(py.None()),
+                    Some(id) => frame.py_objects.get(&id).cloned().unwrap_or_else(|| py.None()),
                     None => py.None(),
                 },
                 TinyColumn::Mixed(v) => match &v[i] {
@@ -120,14 +117,14 @@ pub fn to_dicts_impl(frame: &TinyFrame, py: Python) -> PyResult<Vec<PyObject>> {
                     ValueEnum::Float(x) => x.into_py(py),
                     ValueEnum::Bool(x) => x.into_py(py),
                     ValueEnum::Str(x) => x.clone().into_py(py),
-                    ValueEnum::PyObjectId(id) => frame.py_objects.get(id).cloned().unwrap_or(py.None()),
+                    ValueEnum::PyObjectId(id) => frame.py_objects.get(id).cloned().unwrap_or_else(|| py.None()),
                 },
                 TinyColumn::OptMixed(v) => match &v[i] {
                     Some(ValueEnum::Int(x)) => x.into_py(py),
                     Some(ValueEnum::Float(x)) => x.into_py(py),
                     Some(ValueEnum::Bool(x)) => x.into_py(py),
                     Some(ValueEnum::Str(x)) => x.clone().into_py(py),
-                    Some(ValueEnum::PyObjectId(id)) => frame.py_objects.get(id).cloned().unwrap_or(py.None()),
+                    Some(ValueEnum::PyObjectId(id)) => frame.py_objects.get(id).cloned().unwrap_or_else(|| py.None()),
                     None => py.None(),
                 },
             };
