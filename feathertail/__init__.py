@@ -1,4 +1,4 @@
 from .feathertail import TinyFrame, TinyGroupBy
 
 __all__ = ["TinyFrame", "TinyGroupBy"]
-__version__ = '0.3.2'
+__version__ = '0.3.1'
