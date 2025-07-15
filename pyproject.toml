@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "feathertail"
-version = "0.3.0"
+version = "0.3.1"
 description = "A tiny, fast, Rust-backed transformation core for Python table data"
 authors = [{ name = "Odos Matthews", email = "odosmatthews@gmail.com" }]
 readme = "README.md"
