@@ -113,8 +113,8 @@ impl SimdOps {
                 let simd_max = max_result.iter().max().unwrap();
 
                 // Check remainder
-                let remainder_min = remainder.iter().min().unwrap_or(simd_min);
-                let remainder_max = remainder.iter().max().unwrap_or(simd_max);
+                let remainder_min = remainder.iter().min().unwrap_or(*simd_min);
+                let remainder_max = remainder.iter().max().unwrap_or(*simd_max);
 
                 (*simd_min.min(remainder_min), *simd_max.max(remainder_max))
             }
@@ -163,10 +163,10 @@ impl SimdOps {
                 let simd_max = max_result.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
 
                 // Check remainder
-                let remainder_min = remainder.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(simd_min);
-                let remainder_max = remainder.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(simd_max);
+                let remainder_min = remainder.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(*simd_min);
+                let remainder_max = remainder.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(*simd_max);
 
-                (simd_min.min(remainder_min), simd_max.max(remainder_max))
+                (*simd_min.min(remainder_min), *simd_max.max(remainder_max))
             }
         }
         #[cfg(not(target_arch = "x86_64"))]
