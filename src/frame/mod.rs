@@ -473,6 +473,110 @@ impl TinyFrame {
         crate::joins::JoinOps::cross_join(self, other)
     }
 
+    /// Generate descriptive statistics for numeric columns
+    ///
+    /// Returns:
+    ///     TinyFrame: A frame containing statistics (count, mean, std, min, 25%, 50%, 75%, max)
+    pub fn describe(&self) -> PyResult<Self> {
+        crate::stats::describe_impl(self)
+    }
+
+    /// Calculate correlation matrix for numeric columns
+    ///
+    /// Returns:
+    ///     TinyFrame: Correlation matrix
+    pub fn corr(&self) -> PyResult<Self> {
+        crate::stats::corr_impl(self)
+    }
+
+    /// Calculate covariance matrix for numeric columns
+    ///
+    /// Returns:
+    ///     TinyFrame: Covariance matrix
+    pub fn cov(&self) -> PyResult<Self> {
+        crate::stats::cov_impl(self)
+    }
+
+    /// Calculate correlation between two specific columns
+    ///
+    /// Args:
+    ///     column1: First column name
+    ///     column2: Second column name
+    ///
+    /// Returns:
+    ///     f64: Correlation coefficient
+    pub fn corr_with(&self, column1: String, column2: String) -> PyResult<f64> {
+        crate::stats::corr_with_impl(self, &column1, &column2)
+    }
+
+    /// Calculate covariance between two specific columns
+    ///
+    /// Args:
+    ///     column1: First column name
+    ///     column2: Second column name
+    ///
+    /// Returns:
+    ///     f64: Covariance value
+    pub fn cov_with(&self, column1: String, column2: String) -> PyResult<f64> {
+        crate::stats::cov_with_impl(self, &column1, &column2)
+    }
+
+    /// Calculate skewness for numeric columns
+    ///
+    /// Args:
+    ///     column: Column name to calculate skewness for
+    ///
+    /// Returns:
+    ///     f64: Skewness value
+    pub fn skew(&self, column: String) -> PyResult<f64> {
+        crate::stats::skew_impl(self, &column)
+    }
+
+    /// Calculate kurtosis for numeric columns
+    ///
+    /// Args:
+    ///     column: Column name to calculate kurtosis for
+    ///
+    /// Returns:
+    ///     f64: Kurtosis value
+    pub fn kurtosis(&self, column: String) -> PyResult<f64> {
+        crate::stats::kurtosis_impl(self, &column)
+    }
+
+    /// Calculate quantile for numeric columns
+    ///
+    /// Args:
+    ///     column: Column name to calculate quantile for
+    ///     q: Quantile value (0.0 to 1.0)
+    ///
+    /// Returns:
+    ///     f64: Quantile value
+    pub fn quantile(&self, column: String, q: f64) -> PyResult<f64> {
+        crate::stats::quantile_impl(self, &column, q)
+    }
+
+    /// Calculate mode for any column type
+    ///
+    /// Args:
+    ///     column: Column name to calculate mode for
+    ///
+    /// Returns:
+    ///     PyObject: Most frequent value
+    pub fn mode(&self, py: Python, column: String) -> PyResult<PyObject> {
+        crate::stats::mode_impl(self, py, &column)
+    }
+
+    /// Count unique values in a column
+    ///
+    /// Args:
+    ///     column: Column name to count unique values for
+    ///
+    /// Returns:
+    ///     usize: Number of unique values
+    pub fn nunique(&self, column: String) -> PyResult<usize> {
+        crate::stats::nunique_impl(self, &column)
+    }
+
 }
 
 impl TinyFrame {
