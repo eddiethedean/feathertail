@@ -53,7 +53,7 @@ impl TinyFrame {
     /// Create a new empty TinyFrame.
     #[new]
     #[pyo3(text_signature = "()")]
-    fn new() -> Self {
+    pub fn new() -> Self {
         TinyFrame {
             columns: HashMap::new(),
             length: 0,
@@ -70,7 +70,7 @@ impl TinyFrame {
     ///     TinyFrame: New frame inferred from the records.
     #[staticmethod]
     #[pyo3(text_signature = "(records)")]
-    fn from_dicts(py: Python, records: &PyAny) -> PyResult<Self> {
+    pub fn from_dicts(py: Python, records: &PyAny) -> PyResult<Self> {
         convert::from_dicts_impl(py, records)
     }
 
@@ -114,6 +114,11 @@ impl TinyFrame {
     ///     columns_to_drop (List[str]): List of column names to remove.
     fn drop_columns(&mut self, columns_to_drop: Vec<String>) -> PyResult<()> {
         for col_name in columns_to_drop {
+            if !self.columns.contains_key(&col_name) {
+                return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(
+                    format!("Column '{}' not found", col_name)
+                ));
+            }
             self.columns.remove(&col_name);
         }
         Ok(())
@@ -140,7 +145,7 @@ impl TinyFrame {
     ///
     /// Returns:
     ///     int: Number of rows in the frame.
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.length
     }
 
@@ -148,7 +153,7 @@ impl TinyFrame {
     ///
     /// Returns:
     ///     bool: True if empty, False otherwise.
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.length == 0
     }
 
@@ -157,7 +162,7 @@ impl TinyFrame {
     /// Returns:
     ///     Tuple[int, int]: (number of rows, number of columns).
     #[getter]
-    fn shape(&self) -> (usize, usize) {
+    pub fn shape(&self) -> (usize, usize) {
         (self.length, self.columns.len())
     }
 
@@ -207,6 +212,25 @@ impl TinyFrame {
             frame: py_frame,
         };
         Py::new(py, col)
+    }
+}
+
+impl TinyColumn {
+    pub fn len(&self) -> usize {
+        match self {
+            TinyColumn::Int(v) => v.len(),
+            TinyColumn::Float(v) => v.len(),
+            TinyColumn::Str(v) => v.len(),
+            TinyColumn::Bool(v) => v.len(),
+            TinyColumn::OptInt(v) => v.len(),
+            TinyColumn::OptFloat(v) => v.len(),
+            TinyColumn::OptStr(v) => v.len(),
+            TinyColumn::OptBool(v) => v.len(),
+            TinyColumn::Mixed(v) => v.len(),
+            TinyColumn::OptMixed(v) => v.len(),
+            TinyColumn::PyObject(v) => v.len(),
+            TinyColumn::OptPyObject(v) => v.len(),
+        }
     }
 }
 
