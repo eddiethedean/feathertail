@@ -1,0 +1,145 @@
+name: Build Wheels
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64
+          - os: ubuntu-latest
+            python-version: "3.8"
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            python-version: "3.9"
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            python-version: "3.10"
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            python-version: "3.11"
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            python-version: "3.12"
+            target: x86_64-unknown-linux-gnu
+          
+          # Linux ARM64
+          - os: ubuntu-latest
+            python-version: "3.9"
+            target: aarch64-unknown-linux-gnu
+          - os: ubuntu-latest
+            python-version: "3.10"
+            target: aarch64-unknown-linux-gnu
+          - os: ubuntu-latest
+            python-version: "3.11"
+            target: aarch64-unknown-linux-gnu
+          - os: ubuntu-latest
+            python-version: "3.12"
+            target: aarch64-unknown-linux-gnu
+          
+          # macOS x86_64
+          - os: macos-latest
+            python-version: "3.8"
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            python-version: "3.9"
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            python-version: "3.10"
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            python-version: "3.11"
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            python-version: "3.12"
+            target: x86_64-apple-darwin
+          
+          # macOS ARM64
+          - os: macos-latest
+            python-version: "3.9"
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            python-version: "3.10"
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            python-version: "3.11"
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            python-version: "3.12"
+            target: aarch64-apple-darwin
+          
+          # Windows x86_64
+          - os: windows-latest
+            python-version: "3.8"
+            target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            python-version: "3.9"
+            target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            python-version: "3.10"
+            target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            python-version: "3.11"
+            target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            python-version: "3.12"
+            target: x86_64-pc-windows-msvc
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Install cross-compilation tools (Linux ARM64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo '[target.aarch64-unknown-linux-gnu]' >> ~/.cargo/config.toml
+          echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml
+
+      - name: Install maturin
+        run: pip install maturin
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build wheel
+        run: maturin build --release --target ${{ matrix.target }}
+
+      - name: Test wheel installation
+        run: |
+          pip install target/wheels/*.whl
+          python -c "import feathertail; print('Import successful')"
+
+      - name: Upload wheel
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheel-${{ matrix.os }}-py${{ matrix.python-version }}-${{ matrix.target }}
+          path: target/wheels/*.whl
+          retention-days: 30
