@@ -166,7 +166,7 @@ impl SimdOps {
                 let remainder_min = remainder.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(simd_min);
                 let remainder_max = remainder.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(simd_max);
 
-                (*simd_min.min(remainder_min), *simd_max.max(remainder_max))
+                (simd_min.min(remainder_min), simd_max.max(remainder_max))
             }
         }
         #[cfg(not(target_arch = "x86_64"))]
@@ -220,7 +220,7 @@ impl SimdOps {
 
                 // Add remainder
                 let remainder_sum: f64 = remainder.iter()
-                    .zip(b.remainder().iter())
+                    .zip(b.chunks_exact(4).remainder().iter())
                     .map(|(x, y)| x * y)
                     .sum();
 
@@ -261,7 +261,7 @@ impl SimdOps {
                 }
 
                 // Handle remainder
-                for (x, y) in remainder.iter().zip(b.remainder().iter()) {
+                for (x, y) in remainder.iter().zip(b.chunks_exact(4).remainder().iter()) {
                     result.push(x + y);
                 }
 
@@ -302,7 +302,7 @@ impl SimdOps {
                 }
 
                 // Handle remainder
-                for (x, y) in remainder.iter().zip(b.remainder().iter()) {
+                for (x, y) in remainder.iter().zip(b.chunks_exact(4).remainder().iter()) {
                     result.push(x * y);
                 }
 
