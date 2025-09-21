@@ -128,7 +128,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build wheel
-        run: maturin build --release --target ${{ matrix.target }}
+        run: maturin build --release --target ${{ matrix.target }} --target ${{ matrix.target }}
 
       - name: Test wheel installation
         run: |
