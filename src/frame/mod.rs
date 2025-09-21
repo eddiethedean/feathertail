@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 use std::collections::HashMap;
 use crate::frame::iter::TinyFrameRowIter;
 use crate::column::TinyCol;
+use crate::types::DateTimeColumn;
 
 
 pub mod cast;
@@ -575,6 +576,375 @@ impl TinyFrame {
     ///     usize: Number of unique values
     pub fn nunique(&self, column: String) -> PyResult<usize> {
         crate::stats::nunique_impl(self, &column)
+    }
+
+    /// Convert datetime string column to timestamps
+    ///
+    /// Args:
+    ///     column: Column name containing datetime strings
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with timestamp column added
+    pub fn to_timestamps(&self, column: String) -> PyResult<Self> {
+        crate::timeseries::TimeSeriesOps::to_timestamps_impl(self, &column)
+    }
+
+    /// Extract year from datetime string column
+    ///
+    /// Args:
+    ///     column: Column name containing datetime strings
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with year column added
+    pub fn dt_year(&self, column: String) -> PyResult<Self> {
+        crate::timeseries::TimeSeriesOps::dt_year_impl(self, &column)
+    }
+
+    /// Extract month from datetime string column
+    ///
+    /// Args:
+    ///     column: Column name containing datetime strings
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with month column added
+    pub fn dt_month(&self, column: String) -> PyResult<Self> {
+        crate::timeseries::TimeSeriesOps::dt_month_impl(self, &column)
+    }
+
+    /// Extract day from datetime string column
+    ///
+    /// Args:
+    ///     column: Column name containing datetime strings
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with day column added
+    pub fn dt_day(&self, column: String) -> PyResult<Self> {
+        crate::timeseries::TimeSeriesOps::dt_day_impl(self, &column)
+    }
+
+    /// Extract hour from datetime string column
+    ///
+    /// Args:
+    ///     column: Column name containing datetime strings
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with hour column added
+    pub fn dt_hour(&self, column: String) -> PyResult<Self> {
+        crate::timeseries::TimeSeriesOps::dt_hour_impl(self, &column)
+    }
+
+    /// Extract minute from datetime string column
+    ///
+    /// Args:
+    ///     column: Column name containing datetime strings
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with minute column added
+    pub fn dt_minute(&self, column: String) -> PyResult<Self> {
+        crate::timeseries::TimeSeriesOps::dt_minute_impl(self, &column)
+    }
+
+    /// Extract second from datetime string column
+    ///
+    /// Args:
+    ///     column: Column name containing datetime strings
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with second column added
+    pub fn dt_second(&self, column: String) -> PyResult<Self> {
+        crate::timeseries::TimeSeriesOps::dt_second_impl(self, &column)
+    }
+
+    /// Extract day of week from datetime string column
+    ///
+    /// Args:
+    ///     column: Column name containing datetime strings
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with day of week column added
+    pub fn dt_day_of_week(&self, column: String) -> PyResult<Self> {
+        crate::timeseries::TimeSeriesOps::dt_day_of_week_impl(self, &column)
+    }
+
+    /// Extract day of year from datetime string column
+    ///
+    /// Args:
+    ///     column: Column name containing datetime strings
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with day of year column added
+    pub fn dt_day_of_year(&self, column: String) -> PyResult<Self> {
+        crate::timeseries::TimeSeriesOps::dt_day_of_year_impl(self, &column)
+    }
+
+    /// Calculate time differences between consecutive datetime values
+    ///
+    /// Args:
+    ///     column: Column name containing datetime strings
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with time difference column added
+    pub fn dt_diff(&self, column: String) -> PyResult<Self> {
+        crate::timeseries::TimeSeriesOps::dt_diff_impl(self, &column)
+    }
+
+    /// Shift datetime values by specified seconds
+    ///
+    /// Args:
+    ///     column: Column name containing datetime strings
+    ///     seconds: Number of seconds to shift by
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with shifted datetime column added
+    pub fn dt_shift(&self, column: String, seconds: i64) -> PyResult<Self> {
+        crate::timeseries::TimeSeriesOps::dt_shift_impl(self, &column, seconds)
+    }
+
+    /// Calculate rolling mean for a numeric column
+    ///
+    /// Args:
+    ///     column: Column name containing numeric data
+    ///     window_size: Size of the rolling window
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with rolling mean column added
+    pub fn rolling_mean(&self, column: String, window_size: usize) -> PyResult<Self> {
+        let window = crate::window::RollingWindow::new(window_size);
+        crate::window::WindowOps::rolling_mean_impl(self, &column, window)
+    }
+
+    /// Calculate rolling sum for a numeric column
+    ///
+    /// Args:
+    ///     column: Column name containing numeric data
+    ///     window_size: Size of the rolling window
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with rolling sum column added
+    pub fn rolling_sum(&self, column: String, window_size: usize) -> PyResult<Self> {
+        let window = crate::window::RollingWindow::new(window_size);
+        crate::window::WindowOps::rolling_sum_impl(self, &column, window)
+    }
+
+    /// Calculate rolling standard deviation for a numeric column
+    ///
+    /// Args:
+    ///     column: Column name containing numeric data
+    ///     window_size: Size of the rolling window
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with rolling std column added
+    pub fn rolling_std(&self, column: String, window_size: usize) -> PyResult<Self> {
+        let window = crate::window::RollingWindow::new(window_size);
+        crate::window::WindowOps::rolling_std_impl(self, &column, window)
+    }
+
+    /// Calculate expanding mean for a numeric column
+    ///
+    /// Args:
+    ///     column: Column name containing numeric data
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with expanding mean column added
+    pub fn expanding_mean(&self, column: String) -> PyResult<Self> {
+        let window = crate::window::ExpandingWindow::new();
+        crate::window::WindowOps::expanding_mean_impl(self, &column, window)
+    }
+
+    /// Calculate expanding sum for a numeric column
+    ///
+    /// Args:
+    ///     column: Column name containing numeric data
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with expanding sum column added
+    pub fn expanding_sum(&self, column: String) -> PyResult<Self> {
+        let window = crate::window::ExpandingWindow::new();
+        crate::window::WindowOps::expanding_sum_impl(self, &column, window)
+    }
+
+    /// Calculate ranks for a numeric column
+    ///
+    /// Args:
+    ///     column: Column name containing numeric data
+    ///     method: Ranking method ("average", "min", "max", "first", "dense")
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with rank column added
+    pub fn rank(&self, column: String, method: String) -> PyResult<Self> {
+        let rank_method = match method.as_str() {
+            "average" => crate::ranking::RankMethod::Average,
+            "min" => crate::ranking::RankMethod::Min,
+            "max" => crate::ranking::RankMethod::Max,
+            "first" => crate::ranking::RankMethod::First,
+            "dense" => crate::ranking::RankMethod::Dense,
+            _ => return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "Invalid ranking method. Must be one of: average, min, max, first, dense"
+            )),
+        };
+        crate::ranking::RankingOps::rank_impl(self, &column, rank_method)
+    }
+
+    /// Calculate percentage change for a numeric column
+    ///
+    /// Args:
+    ///     column: Column name containing numeric data
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with percentage change column added
+    pub fn pct_change(&self, column: String) -> PyResult<Self> {
+        crate::ranking::RankingOps::pct_change_impl(self, &column)
+    }
+
+    /// Convert strings to uppercase
+    ///
+    /// Args:
+    ///     column: Column name containing string data
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with uppercase string column added
+    pub fn str_upper(&self, column: String) -> PyResult<Self> {
+        crate::string::StringOps::str_upper_impl(self, &column)
+    }
+
+    /// Convert strings to lowercase
+    ///
+    /// Args:
+    ///     column: Column name containing string data
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with lowercase string column added
+    pub fn str_lower(&self, column: String) -> PyResult<Self> {
+        crate::string::StringOps::str_lower_impl(self, &column)
+    }
+
+    /// Strip whitespace from strings
+    ///
+    /// Args:
+    ///     column: Column name containing string data
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with stripped string column added
+    pub fn str_strip(&self, column: String) -> PyResult<Self> {
+        crate::string::StringOps::str_strip_impl(self, &column)
+    }
+
+    /// Replace substrings in strings
+    ///
+    /// Args:
+    ///     column: Column name containing string data
+    ///     from: Substring to replace
+    ///     to: Replacement substring
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with replaced string column added
+    pub fn str_replace(&self, column: String, from: String, to: String) -> PyResult<Self> {
+        crate::string::StringOps::str_replace_impl(self, &column, &from, &to)
+    }
+
+    /// Split strings by delimiter
+    ///
+    /// Args:
+    ///     column: Column name containing string data
+    ///     delimiter: Delimiter to split on
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with split string column added
+    pub fn str_split(&self, column: String, delimiter: String) -> PyResult<Self> {
+        crate::string::StringOps::str_split_impl(self, &column, &delimiter)
+    }
+
+    /// Check if strings contain substring
+    ///
+    /// Args:
+    ///     column: Column name containing string data
+    ///     substring: Substring to search for
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with boolean column indicating if substring is found
+    pub fn str_contains(&self, column: String, substring: String) -> PyResult<Self> {
+        crate::string::StringOps::str_contains_impl(self, &column, &substring)
+    }
+
+    /// Get string length
+    ///
+    /// Args:
+    ///     column: Column name containing string data
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with integer column containing string lengths
+    pub fn str_len(&self, column: String) -> PyResult<Self> {
+        crate::string::StringOps::str_len_impl(self, &column)
+    }
+
+    /// Concatenate strings
+    ///
+    /// Args:
+    ///     column: Column name containing string data
+    ///     separator: Separator to use between strings
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with concatenated string column added
+    pub fn str_cat(&self, column: String, separator: String) -> PyResult<Self> {
+        crate::string::StringOps::str_cat_impl(self, &column, &separator)
+    }
+
+    /// Validate that all values in a column are not null
+    ///
+    /// Args:
+    ///     column: Column name to validate
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with boolean column indicating validation results
+    pub fn validate_not_null(&self, column: String) -> PyResult<Self> {
+        crate::validation::ValidationOps::validate_not_null_impl(self, &column)
+    }
+
+    /// Validate that all values in a numeric column are within a range
+    ///
+    /// Args:
+    ///     column: Column name containing numeric data
+    ///     min: Minimum value (optional)
+    ///     max: Maximum value (optional)
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with boolean column indicating validation results
+    pub fn validate_range(&self, column: String, min: Option<f64>, max: Option<f64>) -> PyResult<Self> {
+        crate::validation::ValidationOps::validate_range_impl(self, &column, min, max)
+    }
+
+    /// Validate that all values in a string column match a pattern
+    ///
+    /// Args:
+    ///     column: Column name containing string data
+    ///     pattern: Pattern to match
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with boolean column indicating validation results
+    pub fn validate_pattern(&self, column: String, pattern: String) -> PyResult<Self> {
+        crate::validation::ValidationOps::validate_pattern_impl(self, &column, &pattern)
+    }
+
+    /// Validate that all values in a column are unique
+    ///
+    /// Args:
+    ///     column: Column name to validate
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with boolean column indicating validation results
+    pub fn validate_unique(&self, column: String) -> PyResult<Self> {
+        crate::validation::ValidationOps::validate_unique_impl(self, &column)
+    }
+
+    /// Get validation summary for a column
+    ///
+    /// Args:
+    ///     column: Column name to summarize
+    ///
+    /// Returns:
+    ///     dict: Dictionary containing validation statistics
+    pub fn validation_summary(&self, column: String) -> PyResult<HashMap<String, f64>> {
+        crate::validation::ValidationOps::validation_summary_impl(self, &column)
     }
 
 }
