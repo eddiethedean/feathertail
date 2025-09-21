@@ -52,9 +52,20 @@ A high-performance Python DataFrame library powered by Rust — designed for fle
 pip install feathertail
 ```
 
-Or, from local source:
+> **⚠️ Note**: Currently, the PyPI package contains a build compiled on macOS. We're working on setting up cross-platform builds for Linux and Windows. For now, you may need to build from source on non-macOS systems.
+
+### Building from Source (Recommended for non-macOS)
 
 ```bash
+# Clone the repository
+git clone https://github.com/your-username/feathertail.git
+cd feathertail
+
+# Install dependencies and build
+pip install maturin
+maturin develop --release
+
+# Or install in development mode
 pip install -e .
 ```
 
@@ -321,6 +332,7 @@ MIT
 
 ## 🎯 Roadmap
 
+- [ ] **Cross-platform PyPI builds** - Set up automated builds for Linux and Windows
 - [ ] Additional time series functions
 - [ ] More statistical distributions
 - [ ] Enhanced plotting integration
