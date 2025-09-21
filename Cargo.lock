@@ -216,6 +216,7 @@ dependencies = [
  "criterion",
  "proptest",
  "pyo3",
+ "rayon",
  "serde_json",
  "tempfile",
 ]

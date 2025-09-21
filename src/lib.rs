@@ -1,5 +1,9 @@
 pub mod frame;
 pub mod column;
+pub mod simd;
+pub mod parallel;
+pub mod chunked;
+pub mod benchmarks;
 mod groupby;
 mod join;
 mod utils;
