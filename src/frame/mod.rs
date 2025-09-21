@@ -10,7 +10,7 @@ pub mod edit;
 pub mod fillna;
 pub mod iter;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ValueEnum {
     Int(i64),
     Float(f64),
@@ -141,6 +141,144 @@ impl TinyFrame {
         Ok(())
     }
 
+    /// Filter rows based on a condition.
+    ///
+    /// Args:
+    ///     column (str): Column name to filter on.
+    ///     condition (str): Condition operator ('==', '!=', '>', '<', '>=', '<=', 'in', 'not_in').
+    ///     value: Value to compare against.
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with filtered rows.
+    fn filter(&self, py: Python, column: String, condition: String, value: &PyAny) -> PyResult<Self> {
+        let col = self.columns.get(&column).ok_or_else(|| {
+            PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column))
+        })?;
+
+        let mut filtered_indices = Vec::new();
+        
+        for (idx, val) in col.iter().enumerate() {
+            let matches = match condition.as_str() {
+                "==" => {
+                    match val {
+                        ValueEnum::Str(_) => self.compare_string_values(&val, value, py, "==")?,
+                        _ => self.compare_values(&val, value, py, |a, b| a == b)?,
+                    }
+                }
+                "!=" => {
+                    match val {
+                        ValueEnum::Str(_) => self.compare_string_values(&val, value, py, "!=")?,
+                        _ => self.compare_values(&val, value, py, |a, b| a != b)?,
+                    }
+                }
+                ">" => self.compare_values(&val, value, py, |a, b| a > b)?,
+                "<" => self.compare_values(&val, value, py, |a, b| a < b)?,
+                ">=" => self.compare_values(&val, value, py, |a, b| a >= b)?,
+                "<=" => self.compare_values(&val, value, py, |a, b| a <= b)?,
+                "in" => self.check_in_values(&val, value, py)?,
+                "not_in" => !self.check_in_values(&val, value, py)?,
+                _ => return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                    format!("Unknown condition: {}", condition)
+                )),
+            };
+            
+            if matches {
+                filtered_indices.push(idx);
+            }
+        }
+
+        self.filter_by_indices(filtered_indices)
+    }
+
+    /// Filter rows where column values are not null.
+    ///
+    /// Args:
+    ///     column (str): Column name to check for nulls.
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with non-null rows.
+    fn dropna(&self, column: String) -> PyResult<Self> {
+        let col = self.columns.get(&column).ok_or_else(|| {
+            PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column))
+        })?;
+
+        let mut filtered_indices = Vec::new();
+        
+        for idx in 0..self.length {
+            let is_not_null = match col {
+                TinyColumn::OptInt(v) => v[idx].is_some(),
+                TinyColumn::OptFloat(v) => v[idx].is_some(),
+                TinyColumn::OptStr(v) => v[idx].is_some(),
+                TinyColumn::OptBool(v) => v[idx].is_some(),
+                TinyColumn::OptMixed(v) => v[idx].is_some(),
+                TinyColumn::OptPyObject(v) => v[idx].is_some(),
+                _ => true, // Non-optional columns are never null
+            };
+            
+            if is_not_null {
+                filtered_indices.push(idx);
+            }
+        }
+
+        self.filter_by_indices(filtered_indices)
+    }
+
+    /// Sort the frame by one or more columns.
+    ///
+    /// Args:
+    ///     by (List[str]): Column names to sort by.
+    ///     ascending (bool): Sort in ascending order (default True).
+    ///
+    /// Returns:
+    ///     TinyFrame: New frame with sorted rows.
+    fn sort_values(&self, by: Vec<String>, ascending: Option<bool>) -> PyResult<Self> {
+        let ascending = ascending.unwrap_or(true);
+        
+        // Handle empty frame
+        if self.length == 0 {
+            return Ok(self.clone());
+        }
+        
+        // Validate all columns exist
+        for col_name in &by {
+            if !self.columns.contains_key(col_name) {
+                return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(
+                    format!("Column '{}' not found", col_name)
+                ));
+            }
+        }
+        
+        let mut indices: Vec<usize> = (0..self.length).collect();
+        
+        // Sort by multiple columns (stable sort)
+        indices.sort_by(|&a, &b| {
+            for col_name in &by {
+                let col = match self.columns.get(col_name) {
+                    Some(col) => col,
+                    None => {
+                        // This should not happen as we check columns exist before sorting
+                        return std::cmp::Ordering::Equal;
+                    }
+                };
+                
+                let val_a = self.get_value_at_index(col, a);
+                let val_b = self.get_value_at_index(col, b);
+                
+                let comparison = self.compare_for_sort(val_a, val_b);
+                if comparison != std::cmp::Ordering::Equal {
+                    return if ascending {
+                        comparison
+                    } else {
+                        comparison.reverse()
+                    };
+                }
+            }
+            std::cmp::Ordering::Equal
+        });
+
+        self.filter_by_indices(indices)
+    }
+
     /// Return the number of rows.
     ///
     /// Returns:
@@ -213,6 +351,134 @@ impl TinyFrame {
         };
         Py::new(py, col)
     }
+
+}
+
+impl TinyFrame {
+    // Helper methods for filtering and sorting
+    fn filter_by_indices(&self, indices: Vec<usize>) -> PyResult<Self> {
+        let mut new_columns: HashMap<String, TinyColumn> = HashMap::new();
+        
+        for (name, column) in &self.columns {
+            let new_column = match column {
+                TinyColumn::Int(v) => {
+                    let new_v: Vec<i64> = indices.iter().map(|&i| v[i]).collect();
+                    TinyColumn::Int(new_v)
+                }
+                TinyColumn::Float(v) => {
+                    let new_v: Vec<f64> = indices.iter().map(|&i| v[i]).collect();
+                    TinyColumn::Float(new_v)
+                }
+                TinyColumn::Str(v) => {
+                    let new_v: Vec<String> = indices.iter().map(|&i| v[i].clone()).collect();
+                    TinyColumn::Str(new_v)
+                }
+                TinyColumn::Bool(v) => {
+                    let new_v: Vec<bool> = indices.iter().map(|&i| v[i]).collect();
+                    TinyColumn::Bool(new_v)
+                }
+                TinyColumn::OptInt(v) => {
+                    let new_v: Vec<Option<i64>> = indices.iter().map(|&i| v[i]).collect();
+                    TinyColumn::OptInt(new_v)
+                }
+                TinyColumn::OptFloat(v) => {
+                    let new_v: Vec<Option<f64>> = indices.iter().map(|&i| v[i]).collect();
+                    TinyColumn::OptFloat(new_v)
+                }
+                TinyColumn::OptStr(v) => {
+                    let new_v: Vec<Option<String>> = indices.iter().map(|&i| v[i].clone()).collect();
+                    TinyColumn::OptStr(new_v)
+                }
+                TinyColumn::OptBool(v) => {
+                    let new_v: Vec<Option<bool>> = indices.iter().map(|&i| v[i]).collect();
+                    TinyColumn::OptBool(new_v)
+                }
+                TinyColumn::Mixed(v) => {
+                    let new_v: Vec<ValueEnum> = indices.iter().map(|&i| v[i].clone()).collect();
+                    TinyColumn::Mixed(new_v)
+                }
+                TinyColumn::OptMixed(v) => {
+                    let new_v: Vec<Option<ValueEnum>> = indices.iter().map(|&i| v[i].clone()).collect();
+                    TinyColumn::OptMixed(new_v)
+                }
+                TinyColumn::PyObject(v) => {
+                    let new_v: Vec<u64> = indices.iter().map(|&i| v[i]).collect();
+                    TinyColumn::PyObject(new_v)
+                }
+                TinyColumn::OptPyObject(v) => {
+                    let new_v: Vec<Option<u64>> = indices.iter().map(|&i| v[i]).collect();
+                    TinyColumn::OptPyObject(new_v)
+                }
+            };
+            new_columns.insert(name.clone(), new_column);
+        }
+
+        Ok(TinyFrame {
+            columns: new_columns,
+            length: indices.len(),
+            py_objects: self.py_objects.clone(),
+        })
+    }
+
+    fn compare_values(&self, val: &ValueEnum, py_value: &PyAny, _py: Python, compare_fn: fn(f64, f64) -> bool) -> PyResult<bool> {
+        match val {
+            ValueEnum::Int(v) => {
+                let py_f64 = py_value.extract::<f64>()?;
+                Ok(compare_fn(*v as f64, py_f64))
+            }
+            ValueEnum::Float(v) => {
+                let py_f64 = py_value.extract::<f64>()?;
+                Ok(compare_fn(*v, py_f64))
+            }
+            ValueEnum::Str(_) => return Ok(false), // String comparison handled separately
+            ValueEnum::Bool(_) => return Ok(false), // Bool comparison not implemented yet
+            ValueEnum::PyObjectId(_) => return Ok(false), // PyObject comparison not implemented yet
+        }
+    }
+
+    fn compare_string_values(&self, val: &ValueEnum, py_value: &PyAny, _py: Python, condition: &str) -> PyResult<bool> {
+        match val {
+            ValueEnum::Str(s) => {
+                let py_str: String = py_value.extract()?;
+                Ok(match condition {
+                    "==" => s == &py_str,
+                    "!=" => s != &py_str,
+                    _ => false, // Other comparisons not supported for strings
+                })
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn check_in_values(&self, val: &ValueEnum, py_value: &PyAny, _py: Python) -> PyResult<bool> {
+        // This is a simplified implementation - in practice, you'd want to handle different types
+        match val {
+            ValueEnum::Str(s) => {
+                let py_str: String = py_value.extract()?;
+                Ok(s == &py_str)
+            }
+            _ => Ok(false), // Other types not implemented yet
+        }
+    }
+
+    fn get_value_at_index(&self, column: &TinyColumn, index: usize) -> Option<f64> {
+        match column {
+            TinyColumn::Int(v) => Some(v[index] as f64),
+            TinyColumn::Float(v) => Some(v[index]),
+            TinyColumn::OptInt(v) => v[index].map(|x| x as f64),
+            TinyColumn::OptFloat(v) => v[index],
+            _ => None,
+        }
+    }
+
+    fn compare_for_sort(&self, val_a: Option<f64>, val_b: Option<f64>) -> std::cmp::Ordering {
+        match (val_a, val_b) {
+            (Some(a), Some(b)) => a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => std::cmp::Ordering::Equal,
+        }
+    }
 }
 
 impl TinyColumn {
@@ -231,6 +497,67 @@ impl TinyColumn {
             TinyColumn::PyObject(v) => v.len(),
             TinyColumn::OptPyObject(v) => v.len(),
         }
+    }
+
+    pub fn iter(&self) -> TinyColumnIter {
+        TinyColumnIter::new(self)
+    }
+}
+
+pub struct TinyColumnIter<'a> {
+    column: &'a TinyColumn,
+    index: usize,
+}
+
+impl<'a> TinyColumnIter<'a> {
+    fn new(column: &'a TinyColumn) -> Self {
+        TinyColumnIter { column, index: 0 }
+    }
+}
+
+impl<'a> Iterator for TinyColumnIter<'a> {
+    type Item = ValueEnum;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.column.len() {
+            return None;
+        }
+
+        let value = match self.column {
+            TinyColumn::Int(v) => ValueEnum::Int(v[self.index]),
+            TinyColumn::Float(v) => ValueEnum::Float(v[self.index]),
+            TinyColumn::Str(v) => ValueEnum::Str(v[self.index].clone()),
+            TinyColumn::Bool(v) => ValueEnum::Bool(v[self.index]),
+            TinyColumn::OptInt(v) => {
+                self.index += 1;
+                return v[self.index - 1].map(ValueEnum::Int);
+            }
+            TinyColumn::OptFloat(v) => {
+                self.index += 1;
+                return v[self.index - 1].map(ValueEnum::Float);
+            }
+            TinyColumn::OptStr(v) => {
+                self.index += 1;
+                return v[self.index - 1].clone().map(ValueEnum::Str);
+            }
+            TinyColumn::OptBool(v) => {
+                self.index += 1;
+                return v[self.index - 1].map(ValueEnum::Bool);
+            }
+            TinyColumn::Mixed(v) => v[self.index].clone(),
+            TinyColumn::OptMixed(v) => {
+                self.index += 1;
+                return v[self.index - 1].clone();
+            }
+            TinyColumn::PyObject(v) => ValueEnum::PyObjectId(v[self.index]),
+            TinyColumn::OptPyObject(v) => {
+                self.index += 1;
+                return v[self.index - 1].map(ValueEnum::PyObjectId);
+            }
+        };
+
+        self.index += 1;
+        Some(value)
     }
 }
 
