@@ -353,6 +353,15 @@ impl TinyFrame {
         (self.length, self.columns.len())
     }
 
+    /// Get column names.
+    ///
+    /// Returns:
+    ///     List[str]: List of column names
+    #[getter]
+    pub fn columns(&self) -> Vec<String> {
+        self.columns.keys().cloned().collect()
+    }
+
     /// Return string representation of the frame.
     fn __repr__(&self) -> String {
         let mut col_strs = Vec::new();
@@ -399,6 +408,69 @@ impl TinyFrame {
             frame: py_frame,
         };
         Py::new(py, col)
+    }
+
+    /// Inner join with another TinyFrame.
+    ///
+    /// Args:
+    ///     other: The other TinyFrame to join with
+    ///     left_on: List of column names from this frame to join on
+    ///     right_on: List of column names from the other frame to join on
+    ///
+    /// Returns:
+    ///     TinyFrame: The result of the inner join
+    pub fn inner_join(&self, other: &TinyFrame, left_on: Vec<String>, right_on: Vec<String>) -> PyResult<Self> {
+        crate::joins::JoinOps::inner_join(self, other, left_on, right_on)
+    }
+
+    /// Left join with another TinyFrame.
+    ///
+    /// Args:
+    ///     other: The other TinyFrame to join with
+    ///     left_on: List of column names from this frame to join on
+    ///     right_on: List of column names from the other frame to join on
+    ///
+    /// Returns:
+    ///     TinyFrame: The result of the left join
+    pub fn left_join(&self, other: &TinyFrame, left_on: Vec<String>, right_on: Vec<String>) -> PyResult<Self> {
+        crate::joins::JoinOps::left_join(self, other, left_on, right_on)
+    }
+
+    /// Right join with another TinyFrame.
+    ///
+    /// Args:
+    ///     other: The other TinyFrame to join with
+    ///     left_on: List of column names from this frame to join on
+    ///     right_on: List of column names from the other frame to join on
+    ///
+    /// Returns:
+    ///     TinyFrame: The result of the right join
+    pub fn right_join(&self, other: &TinyFrame, left_on: Vec<String>, right_on: Vec<String>) -> PyResult<Self> {
+        crate::joins::JoinOps::right_join(self, other, left_on, right_on)
+    }
+
+    /// Outer join with another TinyFrame.
+    ///
+    /// Args:
+    ///     other: The other TinyFrame to join with
+    ///     left_on: List of column names from this frame to join on
+    ///     right_on: List of column names from the other frame to join on
+    ///
+    /// Returns:
+    ///     TinyFrame: The result of the outer join
+    pub fn outer_join(&self, other: &TinyFrame, left_on: Vec<String>, right_on: Vec<String>) -> PyResult<Self> {
+        crate::joins::JoinOps::outer_join(self, other, left_on, right_on)
+    }
+
+    /// Cross join with another TinyFrame.
+    ///
+    /// Args:
+    ///     other: The other TinyFrame to join with
+    ///
+    /// Returns:
+    ///     TinyFrame: The result of the cross join
+    pub fn cross_join(&self, other: &TinyFrame) -> PyResult<Self> {
+        crate::joins::JoinOps::cross_join(self, other)
     }
 
 }

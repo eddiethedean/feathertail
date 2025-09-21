@@ -4,6 +4,7 @@ pub mod simd;
 pub mod parallel;
 pub mod chunked;
 pub mod benchmarks;
+pub mod joins;
 mod groupby;
 mod join;
 mod utils;
