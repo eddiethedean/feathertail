@@ -26,6 +26,18 @@ jobs:
           echo "Downloaded wheels:"
           find dist/ -name "*.whl" -type f | sort
 
+      - name: Organize wheels for PyPI
+        run: |
+          # Create a clean dist directory
+          mkdir -p dist_clean
+          # Copy all wheels to dist_clean with proper names
+          find dist/ -name "*.whl" -type f -exec cp {} dist_clean/ \;
+          # Remove the old dist directory and rename
+          rm -rf dist
+          mv dist_clean dist
+          echo "Final wheels for PyPI:"
+          ls -la dist/
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
