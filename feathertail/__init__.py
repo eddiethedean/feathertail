@@ -1,12 +1,17 @@
 # Import from the compiled module
 import importlib.util
 import os
+import sys
 
 # Get the path to the compiled module
 current_dir = os.path.dirname(os.path.abspath(__file__))
 so_file = None
+
+# Look for compiled module with various extensions
 for file in os.listdir(current_dir):
-    if file.endswith('.so'):
+    if (file.endswith('.so') or 
+        file.endswith('.pyd') or 
+        (file.startswith('feathertail') and '.' in file)):
         so_file = os.path.join(current_dir, file)
         break
 
@@ -21,4 +26,4 @@ else:
     raise ImportError("Could not find compiled feathertail module")
 
 __all__ = ["TinyFrame", "TinyGroupBy"]
-__version__ = '0.3.1'
+__version__ = '0.4.0'

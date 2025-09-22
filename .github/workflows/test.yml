@@ -36,6 +36,9 @@ jobs:
       - name: Install wheel
         run: pip install target/wheels/*.whl
 
+      - name: Install test dependencies
+        run: pip install pytest
+
       - name: Run tests
         run: |
           python -m pytest tests/python/unit/ -v --tb=short
