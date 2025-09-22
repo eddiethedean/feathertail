@@ -43,6 +43,7 @@ mod integration_tests;
 #[cfg(test)]
 mod property_tests;
 
+#[cfg(feature = "simd")]
 pub mod benchmarks;
 
 #[cfg(feature = "simd")]

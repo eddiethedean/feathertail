@@ -7,7 +7,7 @@ authors = ["Odos Matthews odosmatthews@gmail.com"]
 license = "MIT"
 
 [features]
-default = ["simd"]
+default = ["no-simd"]
 simd = []
 no-simd = []
 avx2 = ["simd"]
