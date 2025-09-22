@@ -86,13 +86,17 @@ impl PerformanceBenchmarks {
         
         // Extract numerical columns for SIMD testing
         if let Some(TinyColumn::Int(int_col)) = frame.columns.get("value") {
-            let (sum_result, sum_time) = SimdBenchmarks::benchmark_sum_i64(int_col, iterations);
+            let start = Instant::now();
+            let sum_result = SimdBenchmarks::benchmark_sum_i64(int_col);
+            let sum_time = start.elapsed().as_secs_f64() / iterations as f64;
             results.insert("simd_sum_i64".to_string(), sum_time);
             results.insert("simd_sum_i64_result".to_string(), sum_result as f64);
         }
         
         if let Some(TinyColumn::Float(float_col)) = frame.columns.get("value") {
-            let (sum_result, sum_time) = SimdBenchmarks::benchmark_sum_f64(float_col, iterations);
+            let start = Instant::now();
+            let sum_result = SimdBenchmarks::benchmark_sum_f64(float_col);
+            let sum_time = start.elapsed().as_secs_f64() / iterations as f64;
             results.insert("simd_sum_f64".to_string(), sum_time);
             results.insert("simd_sum_f64_result".to_string(), sum_result);
         }
