@@ -36,6 +36,7 @@ A high-performance Python DataFrame library powered by Rust — designed for fle
 - ✅ **Memory Optimization**: String interning, lazy evaluation, and copy-on-write optimizations
 - ✅ **Chunked Processing**: Handle large datasets efficiently with streaming operations
 - ✅ **Rust-backed Core**: Lightweight, fast, and dependency-light
+- ✅ **Cross-Platform Builds**: Automated CI/CD with pre-built wheels for all major platforms
 
 ### 🛠️ **Developer Experience**
 - ✅ **Comprehensive Documentation**: Sphinx-generated API docs with tutorials and guides
@@ -52,13 +53,16 @@ A high-performance Python DataFrame library powered by Rust — designed for fle
 pip install feathertail
 ```
 
-> **⚠️ Note**: Currently, the PyPI package contains a build compiled on macOS. We're working on setting up cross-platform builds for Linux and Windows. For now, you may need to build from source on non-macOS systems.
+> **✅ Cross-Platform Support**: Pre-built wheels are available for Python 3.8+ on:
+> - **Linux** (x86_64)
+> - **macOS** (ARM64/aarch64) 
+> - **Windows** (x86_64)
 
-### Building from Source (Recommended for non-macOS)
+### Building from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/feathertail.git
+git clone https://github.com/eddiethedean/feathertail.git
 cd feathertail
 
 # Install dependencies and build
@@ -264,6 +268,33 @@ print(f"Total operations: {overall_stats['total_operations']}")
 
 ---
 
+## 🏗️ Build System & CI/CD
+
+### Automated Cross-Platform Builds
+feathertail uses GitHub Actions to automatically build and test wheels for all major platforms:
+
+- **15 build configurations** covering Python 3.8-3.12
+- **3 operating systems**: Linux (Ubuntu), macOS (ARM64), Windows
+- **Automated testing** with wheel installation verification
+- **Artifact management** with 30-day retention
+- **PyPI deployment** on version tags
+
+### Build Matrix
+| Platform | Python Versions | Architecture |
+|----------|----------------|--------------|
+| Ubuntu   | 3.8, 3.9, 3.10, 3.11, 3.12 | x86_64 |
+| macOS    | 3.8, 3.9, 3.10, 3.11, 3.12 | ARM64 (aarch64) |
+| Windows  | 3.8, 3.9, 3.10, 3.11, 3.12 | x86_64 |
+
+### Quality Assurance
+- ✅ **Rust compilation** with proper target architecture
+- ✅ **Python wheel building** with maturin
+- ✅ **Installation testing** from temp directories
+- ✅ **Import verification** to ensure module works correctly
+- ✅ **Cross-platform compatibility** testing
+
+---
+
 ## 🧪 Testing
 
 ```bash
@@ -332,7 +363,7 @@ MIT
 
 ## 🎯 Roadmap
 
-- [ ] **Cross-platform PyPI builds** - Set up automated builds for Linux and Windows
+- [x] **Cross-platform PyPI builds** - ✅ Automated builds for Linux, macOS, and Windows
 - [ ] Additional time series functions
 - [ ] More statistical distributions
 - [ ] Enhanced plotting integration
