@@ -110,20 +110,20 @@ jobs:
       - name: Build wheel
         run: maturin build --release -i python --target ${{ matrix.target }}
 
-              - name: Test wheel installation (Windows)
-                if: runner.os == 'Windows'
-                run: |
-                  $wheel = Get-ChildItem target/wheels/*.whl | Select-Object -First 1
-                  pip install $wheel.FullName
-                  cd $env:TEMP && python -c "import feathertail; print('Import successful')"
-                shell: pwsh
+      - name: Test wheel installation (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          $wheel = Get-ChildItem target/wheels/*.whl | Select-Object -First 1
+          pip install $wheel.FullName
+          cd $env:TEMP && python -c "import feathertail; print('Import successful')"
+        shell: pwsh
 
-              - name: Test wheel installation (Unix)
-                if: runner.os != 'Windows'
-                run: |
-                  pip install target/wheels/*.whl
-                  cd /tmp && python -c "import feathertail; print('Import successful')"
-                shell: bash
+      - name: Test wheel installation (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          pip install target/wheels/*.whl
+          cd /tmp && python -c "import feathertail; print('Import successful')"
+        shell: bash
 
       - name: Upload wheel
         uses: actions/upload-artifact@v4
