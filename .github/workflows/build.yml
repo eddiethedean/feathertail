@@ -17,38 +17,67 @@ jobs:
           # Linux x86_64
           - os: ubuntu-latest
             python-version: "3.8"
+            target: x86_64-unknown-linux-gnu
           - os: ubuntu-latest
             python-version: "3.9"
+            target: x86_64-unknown-linux-gnu
           - os: ubuntu-latest
             python-version: "3.10"
+            target: x86_64-unknown-linux-gnu
           - os: ubuntu-latest
             python-version: "3.11"
+            target: x86_64-unknown-linux-gnu
           - os: ubuntu-latest
             python-version: "3.12"
+            target: x86_64-unknown-linux-gnu
           
           # macOS (Intel + Apple Silicon)
           - os: macos-latest
             python-version: "3.8"
+            target: x86_64-apple-darwin
           - os: macos-latest
             python-version: "3.9"
+            target: x86_64-apple-darwin
           - os: macos-latest
             python-version: "3.10"
+            target: x86_64-apple-darwin
           - os: macos-latest
             python-version: "3.11"
+            target: x86_64-apple-darwin
           - os: macos-latest
             python-version: "3.12"
+            target: x86_64-apple-darwin
+          
+          # macOS ARM64
+          - os: macos-latest
+            python-version: "3.9"
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            python-version: "3.10"
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            python-version: "3.11"
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            python-version: "3.12"
+            target: aarch64-apple-darwin
           
           # Windows x86_64
           - os: windows-latest
             python-version: "3.8"
+            target: x86_64-pc-windows-msvc
           - os: windows-latest
             python-version: "3.9"
+            target: x86_64-pc-windows-msvc
           - os: windows-latest
             python-version: "3.10"
+            target: x86_64-pc-windows-msvc
           - os: windows-latest
             python-version: "3.11"
+            target: x86_64-pc-windows-msvc
           - os: windows-latest
             python-version: "3.12"
+            target: x86_64-pc-windows-msvc
 
     steps:
       - name: Checkout code
@@ -61,6 +90,14 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Add Rust targets
+        run: |
+          rustup target add ${{ matrix.target }}
+          # Add additional targets for cross-compilation
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            rustup target add aarch64-unknown-linux-gnu
+          fi
 
       - name: Install maturin
         run: pip install maturin
@@ -75,10 +112,15 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Clean target directory
-        run: rm -rf target/wheels/*.whl
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            if (Test-Path "target/wheels") { Remove-Item -Recurse -Force "target/wheels" }
+          else
+            rm -rf target/wheels/*.whl
+          fi
 
       - name: Build wheel
-        run: maturin build --release -i python
+        run: maturin build --release -i python --target ${{ matrix.target }}
 
       - name: Test wheel installation
         run: |
@@ -88,6 +130,6 @@ jobs:
       - name: Upload wheel
         uses: actions/upload-artifact@v4
         with:
-          name: wheel-${{ matrix.os }}-py${{ matrix.python-version }}
+          name: wheel-${{ matrix.os }}-py${{ matrix.python-version }}-${{ matrix.target }}
           path: target/wheels/*.whl
           retention-days: 30
