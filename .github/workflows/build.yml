@@ -92,12 +92,11 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Add Rust targets
-        run: |
-          rustup target add ${{ matrix.target }}
-          # Add additional targets for cross-compilation
-          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-            rustup target add aarch64-unknown-linux-gnu
-          fi
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Add additional targets for cross-compilation
+        if: matrix.os == 'ubuntu-latest'
+        run: rustup target add aarch64-unknown-linux-gnu
 
       - name: Install maturin
         run: pip install maturin
@@ -111,13 +110,16 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Clean target directory
+      - name: Clean target directory (Windows)
+        if: runner.os == 'Windows'
         run: |
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            if (Test-Path "target/wheels") { Remove-Item -Recurse -Force "target/wheels" }
-          else
-            rm -rf target/wheels/*.whl
-          fi
+          if (Test-Path "target/wheels") { Remove-Item -Recurse -Force "target/wheels" }
+        shell: pwsh
+
+      - name: Clean target directory (Unix)
+        if: runner.os != 'Windows'
+        run: rm -rf target/wheels/*.whl
+        shell: bash
 
       - name: Build wheel
         run: maturin build --release -i python --target ${{ matrix.target }}
