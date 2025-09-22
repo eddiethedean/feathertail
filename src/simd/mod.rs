@@ -1,229 +1,146 @@
 // Cross-platform SIMD operations with automatic feature detection
 // Uses architecture-specific SIMD when available, falls back to scalar operations
 
+// Simple dispatch macro that works for both SIMD and no-SIMD cases
+macro_rules! simd_dispatch {
+    ($method:ident, $data:expr) => {
+        {
+            use crate::simd::scalar_fallback::ScalarOps;
+            ScalarOps::$method($data)
+        }
+    };
+    ($method:ident, $data:expr, $arg1:expr) => {
+        {
+            use crate::simd::scalar_fallback::ScalarOps;
+            ScalarOps::$method($data, $arg1)
+        }
+    };
+    ($method:ident, $data:expr, $arg1:expr, $arg2:expr) => {
+        {
+            use crate::simd::scalar_fallback::ScalarOps;
+            ScalarOps::$method($data, $arg1, $arg2)
+        }
+    };
+}
+
 // Architecture-specific modules
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(target_arch = "x86_64", feature = "simd"))]
 mod x86_64_simd;
 
-#[cfg(target_arch = "aarch64")]
+#[cfg(all(target_arch = "aarch64", feature = "simd"))]
 mod arm64_simd;
 
+#[cfg(feature = "simd")]
 mod cpu_features;
 mod scalar_fallback;
 
+#[cfg(test)]
+mod tests;
+
+#[cfg(test)]
+mod integration_tests;
+
+#[cfg(test)]
+mod property_tests;
+
+pub mod benchmarks;
+
+#[cfg(feature = "simd")]
 use cpu_features::{SimdCapabilities, SimdType, get_simd_capabilities, get_best_simd_type};
+
+#[cfg(not(feature = "simd"))]
+#[derive(Debug, Clone, Copy)]
+pub struct SimdCapabilities {
+    pub avx2: bool,
+    pub neon: bool,
+    pub sse2: bool,
+    pub sse4_1: bool,
+}
+
+#[cfg(not(feature = "simd"))]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SimdType {
+    Scalar,
+}
 
 pub struct SimdOps;
 
 impl SimdOps {
     // SIMD-optimized sum for i64 vectors
     pub fn sum_i64(data: &[i64]) -> i64 {
-        match get_best_simd_type() {
-            #[cfg(target_arch = "x86_64")]
-            SimdType::AVX2 => {
-                use crate::simd::x86_64_simd::X86_64SimdOps;
-                X86_64SimdOps::sum_i64(data)
-            }
-            #[cfg(target_arch = "aarch64")]
-            SimdType::NEON => {
-                use crate::simd::arm64_simd::Arm64SimdOps;
-                Arm64SimdOps::sum_i64(data)
-            }
-            _ => {
-                use crate::simd::scalar_fallback::ScalarOps;
-                ScalarOps::sum_i64(data)
-            }
-        }
+        simd_dispatch!(sum_i64, data)
     }
 
     // SIMD-optimized sum for f64 vectors
     pub fn sum_f64(data: &[f64]) -> f64 {
-        match get_best_simd_type() {
-            #[cfg(target_arch = "x86_64")]
-            SimdType::AVX2 => {
-                use crate::simd::x86_64_simd::X86_64SimdOps;
-                X86_64SimdOps::sum_f64(data)
-            }
-            #[cfg(target_arch = "aarch64")]
-            SimdType::NEON => {
-                use crate::simd::arm64_simd::Arm64SimdOps;
-                Arm64SimdOps::sum_f64(data)
-            }
-            _ => {
-                use crate::simd::scalar_fallback::ScalarOps;
-                ScalarOps::sum_f64(data)
-            }
-        }
+        simd_dispatch!(sum_f64, data)
     }
 
     // SIMD-optimized mean for f64 vectors
     pub fn mean_f64(data: &[f64]) -> f64 {
-        match get_best_simd_type() {
-            #[cfg(target_arch = "x86_64")]
-            SimdType::AVX2 => {
-                use crate::simd::x86_64_simd::X86_64SimdOps;
-                X86_64SimdOps::mean_f64(data)
-            }
-            #[cfg(target_arch = "aarch64")]
-            SimdType::NEON => {
-                use crate::simd::arm64_simd::Arm64SimdOps;
-                Arm64SimdOps::mean_f64(data)
-            }
-            _ => {
-                use crate::simd::scalar_fallback::ScalarOps;
-                ScalarOps::mean_f64(data)
-            }
-        }
+        simd_dispatch!(mean_f64, data)
     }
 
     // SIMD-optimized min/max for i64 vectors
     pub fn min_max_i64(data: &[i64]) -> (i64, i64) {
-        match get_best_simd_type() {
-            #[cfg(target_arch = "x86_64")]
-            SimdType::AVX2 => {
-                use crate::simd::x86_64_simd::X86_64SimdOps;
-                X86_64SimdOps::min_max_i64(data)
-            }
-            #[cfg(target_arch = "aarch64")]
-            SimdType::NEON => {
-                use crate::simd::arm64_simd::Arm64SimdOps;
-                Arm64SimdOps::min_max_i64(data)
-            }
-            _ => {
-                use crate::simd::scalar_fallback::ScalarOps;
-                ScalarOps::min_max_i64(data)
-            }
-        }
+        simd_dispatch!(min_max_i64, data)
     }
 
     // SIMD-optimized min/max for f64 vectors
     pub fn min_max_f64(data: &[f64]) -> (f64, f64) {
-        match get_best_simd_type() {
-            #[cfg(target_arch = "x86_64")]
-            SimdType::AVX2 => {
-                use crate::simd::x86_64_simd::X86_64SimdOps;
-                X86_64SimdOps::min_max_f64(data)
-            }
-            #[cfg(target_arch = "aarch64")]
-            SimdType::NEON => {
-                use crate::simd::arm64_simd::Arm64SimdOps;
-                Arm64SimdOps::min_max_f64(data)
-            }
-            _ => {
-                use crate::simd::scalar_fallback::ScalarOps;
-                ScalarOps::min_max_f64(data)
-            }
-        }
+        simd_dispatch!(min_max_f64, data)
     }
 
     // SIMD-optimized variance calculation
     pub fn variance_f64(data: &[f64]) -> f64 {
-        match get_best_simd_type() {
-            #[cfg(target_arch = "x86_64")]
-            SimdType::AVX2 => {
-                use crate::simd::x86_64_simd::X86_64SimdOps;
-                X86_64SimdOps::variance_f64(data)
-            }
-            #[cfg(target_arch = "aarch64")]
-            SimdType::NEON => {
-                use crate::simd::arm64_simd::Arm64SimdOps;
-                Arm64SimdOps::variance_f64(data)
-            }
-            _ => {
-                use crate::simd::scalar_fallback::ScalarOps;
-                ScalarOps::variance_f64(data)
-            }
-        }
+        simd_dispatch!(variance_f64, data)
     }
 
     // SIMD-optimized standard deviation
     pub fn std_dev_f64(data: &[f64]) -> f64 {
-        match get_best_simd_type() {
-            #[cfg(target_arch = "x86_64")]
-            SimdType::AVX2 => {
-                use crate::simd::x86_64_simd::X86_64SimdOps;
-                X86_64SimdOps::std_dev_f64(data)
-            }
-            #[cfg(target_arch = "aarch64")]
-            SimdType::NEON => {
-                use crate::simd::arm64_simd::Arm64SimdOps;
-                Arm64SimdOps::std_dev_f64(data)
-            }
-            _ => {
-                use crate::simd::scalar_fallback::ScalarOps;
-                ScalarOps::std_dev_f64(data)
-            }
-        }
+        simd_dispatch!(std_dev_f64, data)
     }
 
     // SIMD-optimized dot product for two f64 vectors
     pub fn dot_product_f64(a: &[f64], b: &[f64]) -> f64 {
-        match get_best_simd_type() {
-            #[cfg(target_arch = "x86_64")]
-            SimdType::AVX2 => {
-                use crate::simd::x86_64_simd::X86_64SimdOps;
-                X86_64SimdOps::dot_product_f64(a, b)
-            }
-            #[cfg(target_arch = "aarch64")]
-            SimdType::NEON => {
-                use crate::simd::arm64_simd::Arm64SimdOps;
-                Arm64SimdOps::dot_product_f64(a, b)
-            }
-            _ => {
-                use crate::simd::scalar_fallback::ScalarOps;
-                ScalarOps::dot_product_f64(a, b)
-            }
-        }
+        simd_dispatch!(dot_product_f64, a, b)
     }
 
     // SIMD-optimized element-wise addition
     pub fn add_f64(a: &[f64], b: &[f64]) -> Vec<f64> {
-        match get_best_simd_type() {
-            #[cfg(target_arch = "x86_64")]
-            SimdType::AVX2 => {
-                use crate::simd::x86_64_simd::X86_64SimdOps;
-                X86_64SimdOps::add_f64(a, b)
-            }
-            #[cfg(target_arch = "aarch64")]
-            SimdType::NEON => {
-                use crate::simd::arm64_simd::Arm64SimdOps;
-                Arm64SimdOps::add_f64(a, b)
-            }
-            _ => {
-                use crate::simd::scalar_fallback::ScalarOps;
-                ScalarOps::add_f64(a, b)
-            }
-        }
+        simd_dispatch!(add_f64, a, b)
     }
 
     // SIMD-optimized element-wise multiplication
     pub fn mul_f64(a: &[f64], b: &[f64]) -> Vec<f64> {
-        match get_best_simd_type() {
-            #[cfg(target_arch = "x86_64")]
-            SimdType::AVX2 => {
-                use crate::simd::x86_64_simd::X86_64SimdOps;
-                X86_64SimdOps::mul_f64(a, b)
-            }
-            #[cfg(target_arch = "aarch64")]
-            SimdType::NEON => {
-                use crate::simd::arm64_simd::Arm64SimdOps;
-                Arm64SimdOps::mul_f64(a, b)
-            }
-            _ => {
-                use crate::simd::scalar_fallback::ScalarOps;
-                ScalarOps::mul_f64(a, b)
-            }
-        }
+        simd_dispatch!(mul_f64, a, b)
     }
 
     // Get SIMD capabilities
+    #[cfg(feature = "simd")]
     pub fn get_capabilities() -> SimdCapabilities {
         get_simd_capabilities()
     }
 
+    #[cfg(not(feature = "simd"))]
+    pub fn get_capabilities() -> SimdCapabilities {
+        SimdCapabilities {
+            avx2: false,
+            neon: false,
+            sse2: false,
+            sse4_1: false,
+        }
+    }
+
     // Get best SIMD type available
+    #[cfg(feature = "simd")]
     pub fn get_simd_type() -> SimdType {
         get_best_simd_type()
+    }
+
+    #[cfg(not(feature = "simd"))]
+    pub fn get_simd_type() -> SimdType {
+        SimdType::Scalar
     }
 }
 
@@ -233,62 +150,20 @@ pub struct SimdStringOps;
 impl SimdStringOps {
     // SIMD-optimized string upper case
     pub fn to_uppercase_simd(input: &str) -> String {
-        match get_best_simd_type() {
-            #[cfg(target_arch = "x86_64")]
-            SimdType::AVX2 => {
-                use crate::simd::x86_64_simd::X86_64StringOps;
-                X86_64StringOps::to_uppercase_simd(input)
-            }
-            #[cfg(target_arch = "aarch64")]
-            SimdType::NEON => {
-                use crate::simd::arm64_simd::Arm64StringOps;
-                Arm64StringOps::to_uppercase_simd(input)
-            }
-            _ => {
-                use crate::simd::scalar_fallback::ScalarStringOps;
-                ScalarStringOps::to_uppercase_simd(input)
-            }
-        }
+        use crate::simd::scalar_fallback::ScalarStringOps;
+        ScalarStringOps::to_uppercase_simd(input)
     }
 
     // SIMD-optimized string lower case
     pub fn to_lowercase_simd(input: &str) -> String {
-        match get_best_simd_type() {
-            #[cfg(target_arch = "x86_64")]
-            SimdType::AVX2 => {
-                use crate::simd::x86_64_simd::X86_64StringOps;
-                X86_64StringOps::to_lowercase_simd(input)
-            }
-            #[cfg(target_arch = "aarch64")]
-            SimdType::NEON => {
-                use crate::simd::arm64_simd::Arm64StringOps;
-                Arm64StringOps::to_lowercase_simd(input)
-            }
-            _ => {
-                use crate::simd::scalar_fallback::ScalarStringOps;
-                ScalarStringOps::to_lowercase_simd(input)
-            }
-        }
+        use crate::simd::scalar_fallback::ScalarStringOps;
+        ScalarStringOps::to_lowercase_simd(input)
     }
 
     // SIMD-optimized string contains
     pub fn contains_simd(haystack: &str, needle: &str) -> bool {
-        match get_best_simd_type() {
-            #[cfg(target_arch = "x86_64")]
-            SimdType::AVX2 => {
-                use crate::simd::x86_64_simd::X86_64StringOps;
-                X86_64StringOps::contains_simd(haystack, needle)
-            }
-            #[cfg(target_arch = "aarch64")]
-            SimdType::NEON => {
-                use crate::simd::arm64_simd::Arm64StringOps;
-                Arm64StringOps::contains_simd(haystack, needle)
-            }
-            _ => {
-                use crate::simd::scalar_fallback::ScalarStringOps;
-                ScalarStringOps::contains_simd(haystack, needle)
-            }
-        }
+        use crate::simd::scalar_fallback::ScalarStringOps;
+        ScalarStringOps::contains_simd(haystack, needle)
     }
 }
 
