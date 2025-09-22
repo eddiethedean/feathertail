@@ -113,7 +113,8 @@ jobs:
       - name: Test wheel installation (Windows)
         if: runner.os == 'Windows'
         run: |
-          pip install target/wheels/feathertail-*.whl
+          $wheel = Get-ChildItem target/wheels/*.whl | Select-Object -First 1
+          pip install $wheel.FullName
           python -c "import feathertail; print('Import successful')"
         shell: pwsh
 
