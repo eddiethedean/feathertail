@@ -7,9 +7,100 @@ on:
   workflow_dispatch:
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python-version: "3.8"
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            python-version: "3.9"
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            python-version: "3.10"
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            python-version: "3.11"
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            python-version: "3.12"
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            python-version: "3.8"
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            python-version: "3.9"
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            python-version: "3.10"
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            python-version: "3.11"
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            python-version: "3.12"
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            python-version: "3.8"
+            target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            python-version: "3.9"
+            target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            python-version: "3.10"
+            target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            python-version: "3.11"
+            target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            python-version: "3.12"
+            target: x86_64-pc-windows-msvc
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install maturin
+        run: pip install maturin
+
+      - name: Clean target directory (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          if (Test-Path "target/wheels") { Remove-Item -Recurse -Force "target/wheels" }
+        shell: pwsh
+
+      - name: Clean target directory (Unix)
+        if: runner.os != 'Windows'
+        run: rm -rf target/wheels/*.whl
+        shell: bash
+
+      - name: Build wheel
+        run: maturin build --release -i python --target ${{ matrix.target }}
+
+      - name: Upload wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.os }}-py${{ matrix.python-version }}-${{ matrix.target }}
+          path: target/wheels/*.whl
+          retention-days: 30
+
   release:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: build
     
     steps:
       - name: Checkout code
