@@ -3,7 +3,7 @@ Feathertail - A tiny, fast, Rust-backed transformation core for Python table dat
 """
 
 # Import the compiled module
-from .feathertail import *
+from feathertail import *
 
 __version__ = "0.5.0"
 __author__ = "Odos Matthews"
