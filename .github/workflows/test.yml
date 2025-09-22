@@ -37,7 +37,7 @@ jobs:
         run: pip install target/wheels/*.whl
 
       - name: Install test dependencies
-        run: pip install pytest
+        run: pip install -r requirements-test.txt
 
       - name: Run tests
         run: |
