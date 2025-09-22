@@ -75,7 +75,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build wheel
-        run: maturin build --release
+        run: maturin build --release --python ${{ matrix.python-version }}
 
       - name: Test wheel installation
         run: |
