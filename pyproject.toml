@@ -7,7 +7,7 @@ module-name = "feathertail"
 
 [project]
 name = "feathertail"
-version = "0.4.1"
+version = "0.4.2"
 description = "A tiny, fast, Rust-backed transformation core for Python table data"
 authors = [{ name = "Odos Matthews", email = "odosmatthews@gmail.com" }]
 readme = "README.md"
