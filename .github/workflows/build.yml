@@ -74,8 +74,11 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Clean target directory
+        run: rm -rf target/wheels/*.whl
+
       - name: Build wheel
-        run: maturin build --release -i python${{ matrix.python-version }}
+        run: maturin build --release -i python
 
       - name: Test wheel installation
         run: |
