@@ -1,6 +1,8 @@
 // Scalar fallback implementations for platforms without SIMD support
 // These provide the same interface as SIMD operations but use standard scalar code
 
+use crate::utils::total_cmp_f64;
+
 pub struct ScalarOps;
 
 impl ScalarOps {
@@ -38,8 +40,8 @@ impl ScalarOps {
         if data.is_empty() {
             return (0.0, 0.0);
         }
-        let min = data.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-        let max = data.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+        let min = data.iter().min_by(|a, b| total_cmp_f64(a, b)).unwrap();
+        let max = data.iter().max_by(|a, b| total_cmp_f64(a, b)).unwrap();
         (*min, *max)
     }
 

@@ -59,8 +59,36 @@ pub struct SimdCapabilities {
 }
 
 #[cfg(not(feature = "simd"))]
+impl SimdCapabilities {
+    pub fn detect() -> Self {
+        Self {
+            avx2: false,
+            neon: false,
+            sse2: false,
+            sse4_1: false,
+        }
+    }
+
+    pub fn has_simd(&self) -> bool {
+        self.avx2 || self.neon
+    }
+
+    pub fn get_best_simd_type(&self) -> SimdType {
+        if self.avx2 {
+            SimdType::AVX2
+        } else if self.neon {
+            SimdType::NEON
+        } else {
+            SimdType::Scalar
+        }
+    }
+}
+
+#[cfg(not(feature = "simd"))]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SimdType {
+    AVX2,
+    NEON,
     Scalar,
 }
 

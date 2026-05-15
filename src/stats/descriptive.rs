@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
 use crate::frame::{TinyFrame, TinyColumn};
+use crate::utils::total_cmp_f64;
 use std::collections::{HashMap, HashSet};
 
 /// Calculate skewness for numeric columns
@@ -86,7 +87,7 @@ pub fn quantile_impl(frame: &TinyFrame, column: &str, q: f64) -> PyResult<f64> {
         ));
     }
 
-    values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    values.sort_by(|a, b| total_cmp_f64(a, b));
 
     let n = values.len();
     let index = q * (n - 1) as f64;

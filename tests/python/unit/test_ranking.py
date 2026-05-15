@@ -10,6 +10,20 @@ class TestRankingFunctions:
         data = frame.to_dicts()
         return [row[column_name] for row in data]
 
+    def test_rank_float_with_nan_no_panic(self):
+        """Ranking on floats that include NaN must not panic."""
+        data = [
+            {"value": 1.0, "id": 1},
+            {"value": float("nan"), "id": 2},
+            {"value": 3.0, "id": 3},
+        ]
+        frame = ft.TinyFrame.from_dicts(data)
+        result = frame.rank("value", "average")
+        assert result.len() == 3
+        ranks = self.get_column_data(result, "value_rank")
+        assert len(ranks) == 3
+        assert all(x is None or isinstance(x, float) for x in ranks)
+
     def test_rank_average_basic(self):
         """Test basic ranking with average method"""
         data = [

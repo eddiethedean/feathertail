@@ -242,3 +242,16 @@ class TestTinyGroupBy:
             assert isinstance(key, tuple)
             assert isinstance(indices, list)
             assert all(isinstance(i, int) for i in indices)
+
+    def test_groupby_float_agg_with_nan_no_panic(self):
+        """Min/max/median on float columns with NaN must not panic."""
+        data = [
+            {"category": "A", "x": 1.0},
+            {"category": "A", "x": float("nan")},
+            {"category": "B", "x": 2.0},
+        ]
+        frame = ft.TinyFrame.from_dicts(data)
+        gb = ft.TinyGroupBy(frame, ["category"])
+        assert gb.min(frame, "x").len() == 2
+        assert gb.max(frame, "x").len() == 2
+        assert gb.median(frame, "x").len() == 2

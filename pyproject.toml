@@ -4,6 +4,8 @@ build-backend = "maturin"
 
 [tool.maturin]
 module-name = "feathertail"
+# Link as a true extension module (no libpython); `cargo test` omits this and uses auto-initialize.
+features = ["extension-module"]
 
 [project]
 name = "feathertail"

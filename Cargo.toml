@@ -8,6 +8,8 @@ license = "MIT"
 
 [features]
 default = ["no-simd"]
+# Enable for maturin / wheels only (see pyproject [tool.maturin]). Omit for `cargo test` so libpython links.
+extension-module = ["pyo3/extension-module"]
 simd = []
 no-simd = []
 avx2 = ["simd"]
@@ -18,7 +20,7 @@ name = "feathertail"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.21", features = ["extension-module"] }
+pyo3 = { version = "0.21", features = ["auto-initialize"] }
 serde_json = "1.0"
 rayon = "1.8"
 time = { version = "0.3", features = ["serde", "macros", "formatting", "parsing"] }

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod property_tests {
-    use crate::simd::{SimdOps, SimdStringOps, SimdCapabilities, SimdType, get_simd_capabilities, get_best_simd_type};
+    use crate::simd::{SimdOps, SimdStringOps, SimdCapabilities, SimdType};
 
     // Property-based tests for SIMD operations
     // These tests verify mathematical properties that should hold for all inputs
@@ -329,9 +329,9 @@ mod property_tests {
     #[test]
     fn test_simd_type_consistency() {
         // SIMD type should be consistent across multiple calls
-        let simd_type1 = get_best_simd_type();
-        let simd_type2 = get_best_simd_type();
-        let simd_type3 = get_best_simd_type();
+        let simd_type1 = SimdOps::get_simd_type();
+        let simd_type2 = SimdOps::get_simd_type();
+        let simd_type3 = SimdOps::get_simd_type();
         
         assert_eq!(simd_type1, simd_type2, "SIMD type should be consistent");
         assert_eq!(simd_type2, simd_type3, "SIMD type should be consistent");
@@ -340,9 +340,9 @@ mod property_tests {
     #[test]
     fn test_cpu_capabilities_consistency() {
         // CPU capabilities should be consistent across multiple calls
-        let caps1 = get_simd_capabilities();
-        let caps2 = get_simd_capabilities();
-        let caps3 = get_simd_capabilities();
+        let caps1 = SimdOps::get_capabilities();
+        let caps2 = SimdOps::get_capabilities();
+        let caps3 = SimdOps::get_capabilities();
         
         assert_eq!(caps1.avx2, caps2.avx2, "AVX2 detection should be consistent");
         assert_eq!(caps1.neon, caps2.neon, "NEON detection should be consistent");

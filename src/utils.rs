@@ -2,7 +2,15 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyFloat, PyLong, PyString};
 use pyo3::PyTypeInfo; // <---- this is the key fix!
 use crate::frame::ValueEnum;
+use std::cmp::Ordering;
 use std::collections::HashMap;
+
+/// Total ordering for `f64` via [`f64::total_cmp`], including NaN. Use instead of
+/// `partial_cmp(..).unwrap()` for sort/min/max to avoid panics.
+#[inline]
+pub fn total_cmp_f64(a: &f64, b: &f64) -> Ordering {
+    a.total_cmp(b)
+}
 
 pub fn convert_pyobject_to_valueenum(py_value: &PyAny, py_objects: &mut HashMap<u64, PyObject>) -> PyResult<ValueEnum> {
     if py_value.is_instance(PyBool::type_object(py_value.py()))? {

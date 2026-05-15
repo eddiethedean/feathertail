@@ -3,6 +3,7 @@ pub mod correlation;
 
 use pyo3::prelude::*;
 use crate::frame::{TinyFrame, TinyColumn};
+use crate::utils::total_cmp_f64;
 use std::collections::HashMap;
 
 /// Generate descriptive statistics for numeric columns
@@ -347,7 +348,7 @@ impl ColumnStats {
         let std = variance.sqrt();
 
         let mut sorted_values = values.to_vec();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| total_cmp_f64(a, b));
 
         let min = sorted_values[0];
         let max = sorted_values[count - 1];

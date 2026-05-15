@@ -74,7 +74,7 @@ test-python:
 	@echo "🐍 Running Python tests..."
 	@PYTHONPATH=. python -m pytest tests/python/ -v --tb=short
 
-# Run Rust tests
+# Run Rust tests (uses auto-initialize; set PYO3_PYTHON if the wrong interpreter is detected)
 test-rust:
 	@echo "🦀 Running Rust tests..."
 	@cargo test

@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::simd::{SimdOps, SimdStringOps, SimdCapabilities, SimdType, get_simd_capabilities, get_best_simd_type};
+    use crate::simd::{SimdOps, SimdStringOps, SimdCapabilities, SimdType};
+    use crate::utils::total_cmp_f64;
     use std::time::Instant;
 
     // Test data generators
@@ -129,8 +130,8 @@ mod tests {
             if data.is_empty() {
                 continue; // Skip empty case
             }
-            let expected_min = *data.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-            let expected_max = *data.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+            let expected_min = *data.iter().min_by(|a, b| total_cmp_f64(a, b)).unwrap();
+            let expected_max = *data.iter().max_by(|a, b| total_cmp_f64(a, b)).unwrap();
             let (actual_min, actual_max) = SimdOps::min_max_f64(&data);
             assert!((actual_min - expected_min).abs() < 1e-10, 
                 "min_f64 failed for data: {:?}, expected: {}, actual: {}", data, expected_min, actual_min);
@@ -311,8 +312,8 @@ mod tests {
     // Test SIMD type consistency
     #[test]
     fn test_simd_type_consistency() {
-        let simd_type = get_best_simd_type();
-        let capabilities = get_simd_capabilities();
+        let simd_type = SimdOps::get_simd_type();
+        let capabilities = SimdOps::get_capabilities();
         
         match simd_type {
             SimdType::AVX2 => assert!(capabilities.avx2, "AVX2 type should match capabilities"),

@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use crate::frame::{TinyFrame, TinyColumn};
-use std::collections::HashMap;
+use crate::utils::total_cmp_f64;
 
 /// Ranking method for rank function
 #[derive(Clone, Debug)]
@@ -16,6 +16,15 @@ pub enum RankMethod {
 pub struct RankingOps;
 
 impl RankingOps {
+    #[inline]
+    fn f64_tied_for_rank(a: f64, b: f64) -> bool {
+        if a == b {
+            true
+        } else {
+            a.is_nan() && b.is_nan()
+        }
+    }
+
     /// Calculate ranks for a numeric column
     pub fn rank_impl(frame: &TinyFrame, column: &str, method: RankMethod) -> PyResult<TinyFrame> {
         let col = frame.columns.get(column)
@@ -28,7 +37,7 @@ impl RankingOps {
             TinyColumn::Float(v) => {
                 let indexed_values: Vec<(usize, f64)> = v.iter().enumerate().map(|(i, &val)| (i, val)).collect();
                 let mut sorted_values = indexed_values.clone();
-                sorted_values.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                sorted_values.sort_by(|a, b| total_cmp_f64(&a.1, &b.1));
                 
                 ranks = Self::calculate_ranks(&sorted_values, &method, v.len());
             },
@@ -48,7 +57,7 @@ impl RankingOps {
                 let mut sorted_values = indexed_values.clone();
                 sorted_values.sort_by(|a, b| {
                     match (a.1, b.1) {
-                        (Some(x), Some(y)) => x.partial_cmp(&y).unwrap(),
+                        (Some(x), Some(y)) => total_cmp_f64(&x, &y),
                         (Some(_), None) => std::cmp::Ordering::Less,
                         (None, Some(_)) => std::cmp::Ordering::Greater,
                         (None, None) => std::cmp::Ordering::Equal,
@@ -184,7 +193,7 @@ impl RankingOps {
                 while i < sorted_values.len() {
                     let current_value = sorted_values[i].1;
                     let mut j = i;
-                    while j < sorted_values.len() && sorted_values[j].1 == current_value {
+                    while j < sorted_values.len() && Self::f64_tied_for_rank(sorted_values[j].1, current_value) {
                         j += 1;
                     }
                     
@@ -204,7 +213,7 @@ impl RankingOps {
                 while i < sorted_values.len() {
                     let current_value = sorted_values[i].1;
                     let mut j = i;
-                    while j < sorted_values.len() && sorted_values[j].1 == current_value {
+                    while j < sorted_values.len() && Self::f64_tied_for_rank(sorted_values[j].1, current_value) {
                         j += 1;
                     }
                     
@@ -224,7 +233,7 @@ impl RankingOps {
                 while i < sorted_values.len() {
                     let current_value = sorted_values[i].1;
                     let mut j = i;
-                    while j < sorted_values.len() && sorted_values[j].1 == current_value {
+                    while j < sorted_values.len() && Self::f64_tied_for_rank(sorted_values[j].1, current_value) {
                         j += 1;
                     }
                     
@@ -252,7 +261,7 @@ impl RankingOps {
                 while i < sorted_values.len() {
                     let current_value = sorted_values[i].1;
                     let mut j = i;
-                    while j < sorted_values.len() && sorted_values[j].1 == current_value {
+                    while j < sorted_values.len() && Self::f64_tied_for_rank(sorted_values[j].1, current_value) {
                         j += 1;
                     }
                     

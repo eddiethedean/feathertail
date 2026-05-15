@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 use std::collections::HashMap;
 use crate::frame::{TinyColumn, TinyFrame};
+use crate::utils::total_cmp_f64;
 
 #[pyclass]
 pub struct TinyGroupBy {
@@ -243,14 +244,14 @@ impl TinyGroupBy {
                 Some(min_val as f64)
             }
             TinyColumn::Float(v) => {
-                row_indices.iter().map(|&i| v[i]).min_by(|a, b| a.partial_cmp(b).unwrap())
+                row_indices.iter().map(|&i| v[i]).min_by(|a, b| total_cmp_f64(a, b))
             }
             TinyColumn::OptInt(v) => {
                 let min_val = row_indices.iter().filter_map(|&i| v[i]).min()?;
                 Some(min_val as f64)
             }
             TinyColumn::OptFloat(v) => {
-                row_indices.iter().filter_map(|&i| v[i]).min_by(|a, b| a.partial_cmp(b).unwrap())
+                row_indices.iter().filter_map(|&i| v[i]).min_by(|a, b| total_cmp_f64(a, b))
             }
             _ => None,
         }
@@ -263,14 +264,14 @@ impl TinyGroupBy {
                 Some(max_val as f64)
             }
             TinyColumn::Float(v) => {
-                row_indices.iter().map(|&i| v[i]).max_by(|a, b| a.partial_cmp(b).unwrap())
+                row_indices.iter().map(|&i| v[i]).max_by(|a, b| total_cmp_f64(a, b))
             }
             TinyColumn::OptInt(v) => {
                 let max_val = row_indices.iter().filter_map(|&i| v[i]).max()?;
                 Some(max_val as f64)
             }
             TinyColumn::OptFloat(v) => {
-                row_indices.iter().filter_map(|&i| v[i]).max_by(|a, b| a.partial_cmp(b).unwrap())
+                row_indices.iter().filter_map(|&i| v[i]).max_by(|a, b| total_cmp_f64(a, b))
             }
             _ => None,
         }
@@ -319,7 +320,7 @@ impl TinyGroupBy {
             return None;
         }
 
-        values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        values.sort_by(|a, b| total_cmp_f64(a, b));
         let mid = values.len() / 2;
         if values.len() % 2 == 0 {
             Some((values[mid - 1] + values[mid]) / 2.0)

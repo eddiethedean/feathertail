@@ -1,6 +1,8 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+use crate::utils::total_cmp_f64;
+
 // x86_64 AVX2 SIMD operations for maximum performance
 #[cfg(target_arch = "x86_64")]
 pub struct X86_64SimdOps;
@@ -113,8 +115,8 @@ impl X86_64SimdOps {
         }
 
         if data.len() < 4 {
-            let min = data.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-            let max = data.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+            let min = data.iter().min_by(|a, b| total_cmp_f64(a, b)).unwrap();
+            let max = data.iter().max_by(|a, b| total_cmp_f64(a, b)).unwrap();
             return (*min, *max);
         }
 
@@ -136,12 +138,12 @@ impl X86_64SimdOps {
             _mm256_storeu_pd(min_result.as_mut_ptr(), min_val);
             _mm256_storeu_pd(max_result.as_mut_ptr(), max_val);
 
-            let simd_min = min_result.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-            let simd_max = max_result.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+            let simd_min = min_result.iter().min_by(|a, b| total_cmp_f64(a, b)).unwrap();
+            let simd_max = max_result.iter().max_by(|a, b| total_cmp_f64(a, b)).unwrap();
 
             // Check remainder
-            let remainder_min = remainder.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(&simd_min);
-            let remainder_max = remainder.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(&simd_max);
+            let remainder_min = remainder.iter().min_by(|a, b| total_cmp_f64(a, b)).unwrap_or(&simd_min);
+            let remainder_max = remainder.iter().max_by(|a, b| total_cmp_f64(a, b)).unwrap_or(&simd_max);
 
             (simd_min.min(remainder_min), simd_max.max(remainder_max))
         }

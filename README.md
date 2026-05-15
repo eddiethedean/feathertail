@@ -43,7 +43,7 @@ A high-performance Python DataFrame library powered by Rust — designed for fle
 - ✅ **Logging & Debugging**: Built-in logging system with performance monitoring
 - ✅ **Profiling Tools**: Performance profiling and optimization insights
 - ✅ **Development Tools**: Pre-commit hooks, automated testing, and development scripts
-- ✅ **239 Comprehensive Tests**: Full test coverage running in 0.17 seconds
+- ✅ **242 Comprehensive Tests**: Full test coverage running in about 0.2 seconds
 
 ---
 
@@ -298,7 +298,7 @@ feathertail uses GitHub Actions to automatically build and test wheels for all m
 ## 🧪 Testing
 
 ```bash
-# Run all tests (239 tests in ~0.17 seconds)
+# Run all tests (242 tests in ~0.2 seconds)
 make test
 
 # Run specific test categories
@@ -341,7 +341,7 @@ This library follows the same spirit: gentle on dependencies, elegant in design,
 
 ## 📊 Performance Benchmarks
 
-- **239 comprehensive tests** run in just **0.17 seconds**
+- **242 comprehensive tests** run in well under one second locally
 - **SIMD-accelerated** numerical operations
 - **Parallel processing** for multi-core performance
 - **Memory-optimized** with string interning and lazy evaluation
@@ -372,4 +372,4 @@ MIT
 
 ---
 
-*Built with ❤️ using Rust and Python*# Trigger new build
+*Built with ❤️ using Rust and Python*

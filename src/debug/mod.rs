@@ -1,4 +1,3 @@
-use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -104,47 +103,42 @@ impl Default for DebugConfig {
     }
 }
 
-/// Global debug configuration
-static mut DEBUG_CONFIG: DebugConfig = DebugConfig {
-    enabled: false,
-    log_operations: true,
-    log_memory: true,
-    log_performance: true,
-    log_errors: true,
-    log_warnings: true,
-    memory_threshold_mb: 100.0,
-    performance_threshold_ms: 1000.0,
-};
+lazy_static::lazy_static! {
+    static ref DEBUG_CONFIG: std::sync::Mutex<DebugConfig> = std::sync::Mutex::new(DebugConfig {
+        enabled: false,
+        log_operations: true,
+        log_memory: true,
+        log_performance: true,
+        log_errors: true,
+        log_warnings: true,
+        memory_threshold_mb: 100.0,
+        performance_threshold_ms: 1000.0,
+    });
+}
 
 /// Set debug configuration
 pub fn set_debug_config(config: DebugConfig) {
-    unsafe {
-        DEBUG_CONFIG = config;
-    }
+    *DEBUG_CONFIG.lock().unwrap() = config;
 }
 
 /// Get debug configuration
 pub fn get_debug_config() -> DebugConfig {
-    unsafe { DEBUG_CONFIG.clone() }
+    DEBUG_CONFIG.lock().unwrap().clone()
 }
 
 /// Enable debug mode
 pub fn enable_debug() {
-    unsafe {
-        DEBUG_CONFIG.enabled = true;
-    }
+    DEBUG_CONFIG.lock().unwrap().enabled = true;
 }
 
 /// Disable debug mode
 pub fn disable_debug() {
-    unsafe {
-        DEBUG_CONFIG.enabled = false;
-    }
+    DEBUG_CONFIG.lock().unwrap().enabled = false;
 }
 
 /// Check if debug mode is enabled
 pub fn is_debug_enabled() -> bool {
-    unsafe { DEBUG_CONFIG.enabled }
+    DEBUG_CONFIG.lock().unwrap().enabled
 }
 
 /// Log debug information if debug mode is enabled

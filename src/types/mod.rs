@@ -38,8 +38,8 @@ impl DateTimeColumn {
                 },
                 DateTimeColumn::OptDateTime(v) => {
                     if let Some(Some(dt)) = v.get(index) {
-                        let py_dt = py.import("datetime").unwrap().getattr("datetime").unwrap();
-                        let py_datetime = py_dt.call_method1("fromtimestamp", (dt.unix_timestamp(),)).unwrap();
+                        let py_dt = py.import("datetime").ok()?.getattr("datetime").ok()?;
+                        let py_datetime = py_dt.call_method1("fromtimestamp", (dt.unix_timestamp(),)).ok()?;
                         Some(py_datetime.into())
                     } else {
                         None
@@ -56,8 +56,8 @@ impl DateTimeColumn {
                 },
                 DateTimeColumn::OptNaiveDateTime(v) => {
                     if let Some(Some(dt)) = v.get(index) {
-                        let py_dt = py.import("datetime").unwrap().getattr("datetime").unwrap();
-                        let py_datetime = py_dt.call_method1("fromtimestamp", (dt.assume_utc().unix_timestamp(),)).unwrap();
+                        let py_dt = py.import("datetime").ok()?.getattr("datetime").ok()?;
+                        let py_datetime = py_dt.call_method1("fromtimestamp", (dt.assume_utc().unix_timestamp(),)).ok()?;
                         Some(py_datetime.into())
                     } else {
                         None

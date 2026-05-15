@@ -136,6 +136,17 @@ class TestDescriptiveStatistics:
         with pytest.raises(ValueError):
             empty_frame.quantile("value", 0.5)
 
+    def test_quantile_with_nan_no_panic(self):
+        """Quantile with NaN in the column must not panic."""
+        data = [
+            {"value": 1.0},
+            {"value": float("nan")},
+            {"value": 3.0},
+        ]
+        frame = TinyFrame.from_dicts(data)
+        q = frame.quantile("value", 0.5)
+        assert isinstance(q, float)
+
     def test_mode_numeric(self, sample_numeric_frame):
         """Test mode calculation with numeric data."""
         # Add some duplicate values

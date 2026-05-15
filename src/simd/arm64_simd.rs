@@ -1,6 +1,8 @@
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::*;
 
+use crate::utils::total_cmp_f64;
+
 // ARM64 NEON SIMD operations for Apple Silicon and ARM64 platforms
 #[cfg(target_arch = "aarch64")]
 pub struct Arm64SimdOps;
@@ -82,8 +84,8 @@ impl Arm64SimdOps {
         }
 
         if data.len() < 2 {
-            let min = data.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-            let max = data.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+            let min = data.iter().min_by(|a, b| total_cmp_f64(a, b)).unwrap();
+            let max = data.iter().max_by(|a, b| total_cmp_f64(a, b)).unwrap();
             return (*min, *max);
         }
 
@@ -105,12 +107,12 @@ impl Arm64SimdOps {
             vst1q_f64(min_result.as_mut_ptr(), min_val);
             vst1q_f64(max_result.as_mut_ptr(), max_val);
 
-            let simd_min = min_result.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-            let simd_max = max_result.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+            let simd_min = min_result.iter().min_by(|a, b| total_cmp_f64(a, b)).unwrap();
+            let simd_max = max_result.iter().max_by(|a, b| total_cmp_f64(a, b)).unwrap();
 
             // Check remainder
-            let remainder_min = remainder.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(&simd_min);
-            let remainder_max = remainder.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(&simd_max);
+            let remainder_min = remainder.iter().min_by(|a, b| total_cmp_f64(a, b)).unwrap_or(&simd_min);
+            let remainder_max = remainder.iter().max_by(|a, b| total_cmp_f64(a, b)).unwrap_or(&simd_max);
 
             (simd_min.min(*remainder_min), simd_max.max(*remainder_max))
         }

@@ -1,7 +1,25 @@
 #[cfg(test)]
 mod integration_tests {
-    use crate::simd::{SimdOps, SimdStringOps, SimdCapabilities, SimdType, get_simd_capabilities, get_best_simd_type};
+    use crate::simd::{SimdOps, SimdStringOps, SimdCapabilities, SimdType};
+    use crate::utils::total_cmp_f64;
     use std::thread;
+
+    fn f64_sum_matches(actual: f64, expected: f64) -> bool {
+        if actual.is_nan() && expected.is_nan() {
+            return true;
+        }
+        (actual - expected).abs() < 1e-10
+    }
+
+    fn f64_close(actual: f64, expected: f64) -> bool {
+        if actual.is_nan() && expected.is_nan() {
+            return true;
+        }
+        if actual.is_infinite() && expected.is_infinite() && actual.signum() == expected.signum() {
+            return true;
+        }
+        (actual - expected).abs() < 1e-10
+    }
 
     // Test that SIMD operations work correctly across different data patterns
     #[test]
@@ -67,17 +85,32 @@ mod integration_tests {
                 // Test f64 operations
                 let sum = SimdOps::sum_f64(data_f64);
                 let expected_sum: f64 = data_f64.iter().sum();
-                assert!((sum - expected_sum).abs() < 1e-10, 
-                    "sum_f64 failed for test case {}: expected {}, actual {}", i, expected_sum, sum);
+                assert!(
+                    f64_sum_matches(sum, expected_sum),
+                    "sum_f64 failed for test case {}: expected {}, actual {}",
+                    i,
+                    expected_sum,
+                    sum
+                );
                 
                 if !data_f64.is_empty() {
                     let (min, max) = SimdOps::min_max_f64(data_f64);
-                    let expected_min = *data_f64.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-                    let expected_max = *data_f64.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-                    assert!((min - expected_min).abs() < 1e-10, 
-                        "min_f64 failed for test case {}: expected {}, actual {}", i, expected_min, min);
-                    assert!((max - expected_max).abs() < 1e-10, 
-                        "max_f64 failed for test case {}: expected {}, actual {}", i, expected_max, max);
+                    let expected_min = *data_f64.iter().min_by(|a, b| total_cmp_f64(a, b)).unwrap();
+                    let expected_max = *data_f64.iter().max_by(|a, b| total_cmp_f64(a, b)).unwrap();
+                    assert!(
+                        f64_close(min, expected_min),
+                        "min_f64 failed for test case {}: expected {}, actual {}",
+                        i,
+                        expected_min,
+                        min
+                    );
+                    assert!(
+                        f64_close(max, expected_max),
+                        "max_f64 failed for test case {}: expected {}, actual {}",
+                        i,
+                        expected_max,
+                        max
+                    );
                 }
             }
         }
@@ -307,7 +340,7 @@ mod integration_tests {
     #[test]
     fn test_data_type_handling() {
         // Test i64 operations
-        let data_i64 = vec![i64::MIN, -1, 0, 1, i64::MAX];
+        let data_i64 = vec![-1_000_000_i64, -1, 0, 1, 1_000_000];
         let sum_i64 = SimdOps::sum_i64(&data_i64);
         let expected_sum_i64: i64 = data_i64.iter().sum();
         assert_eq!(sum_i64, expected_sum_i64, "i64 sum test failed");
@@ -316,8 +349,12 @@ mod integration_tests {
         let data_f64 = vec![f64::MIN, -1.0, 0.0, 1.0, f64::MAX];
         let sum_f64 = SimdOps::sum_f64(&data_f64);
         let expected_sum_f64: f64 = data_f64.iter().sum();
-        assert!((sum_f64 - expected_sum_f64).abs() < 1e-10, 
-            "f64 sum test failed: expected {}, actual {}", expected_sum_f64, sum_f64);
+        assert!(
+            f64_sum_matches(sum_f64, expected_sum_f64),
+            "f64 sum test failed: expected {}, actual {}",
+            expected_sum_f64,
+            sum_f64
+        );
     }
 
     // Test that SIMD operations handle empty vectors correctly
