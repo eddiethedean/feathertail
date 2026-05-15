@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::PyObject;
 use crate::frame::{TinyColumn, ValueEnum};
-use crate::utils::{convert_pyobject_to_valueenum, pyobject_to_option_valueenum};
+use crate::utils::pyobject_to_option_valueenum;
 
 pub fn edit_column_impl(frame: &mut crate::frame::TinyFrame, py: Python, column_name: String, func: PyObject) -> PyResult<()> {
     let col = frame.columns.get_mut(&column_name).ok_or_else(|| {
@@ -72,34 +72,43 @@ fn edit_column_logic(col: &mut TinyColumn, py: Python, func: PyObject, py_object
     // Check if there are any None
     let has_none = new_values.iter().any(|v| v.is_none());
 
-    // Check for presence of fallback PyObject IDs
-    let has_pyobjects = new_values.iter().any(|v| {
-        matches!(v, Some(ValueEnum::PyObjectId(_)))
-    });
+    let py_only_ok = |v: &Option<ValueEnum>| match v {
+        None => true,
+        Some(ValueEnum::PyObjectId(_)) => true,
+        _ => false,
+    };
+    let all_pyobject_ids = new_values.iter().all(py_only_ok);
 
-    // Choose final column type
-    if has_pyobjects {
+    let has_pyobject_ids = new_values
+        .iter()
+        .any(|v| matches!(v, Some(ValueEnum::PyObjectId(_))));
+
+    // Dedicated PyObject columns only if every non-null cell is a PyObjectId
+    if has_pyobject_ids && all_pyobject_ids {
         if has_none {
-            let vec = new_values.into_iter().map(|opt| opt.map(|v| match v {
-                ValueEnum::PyObjectId(id) => id,
-                _ => panic!("Unexpected non-PyObjectId in OptPyObject"),
-            })).collect();
+            let vec: Vec<Option<u64>> = new_values
+                .into_iter()
+                .map(|opt| opt.map(|v| match v {
+                    ValueEnum::PyObjectId(id) => id,
+                    _ => unreachable!("checked all_pyobject_ids"),
+                }))
+                .collect();
             *col = TinyColumn::OptPyObject(vec);
         } else {
-            let vec = new_values.into_iter().map(|opt| match opt {
-                Some(ValueEnum::PyObjectId(id)) => id,
-                _ => panic!("Unexpected non-PyObjectId in PyObject"),
-            }).collect();
+            let vec: Vec<u64> = new_values
+                .into_iter()
+                .map(|opt| match opt {
+                    Some(ValueEnum::PyObjectId(id)) => id,
+                    _ => unreachable!("checked all_pyobject_ids"),
+                })
+                .collect();
             *col = TinyColumn::PyObject(vec);
         }
+    } else if has_none {
+        *col = TinyColumn::OptMixed(new_values);
     } else {
-        // Standard Rust type fallback: Mixed or OptMixed
-        if has_none {
-            *col = TinyColumn::OptMixed(new_values);
-        } else {
-            let no_opt: Vec<ValueEnum> = new_values.into_iter().map(|v| v.unwrap()).collect();
-            *col = TinyColumn::Mixed(no_opt);
-        }
+        let no_opt: Vec<ValueEnum> = new_values.into_iter().map(|v| v.unwrap()).collect();
+        *col = TinyColumn::Mixed(no_opt);
     }
 
     Ok(())

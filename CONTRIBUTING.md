@@ -22,7 +22,7 @@ This project follows a code of conduct that we expect all contributors to follow
 ### Prerequisites
 
 - Rust 1.70+ (for the core library)
-- Python 3.7+ (for Python bindings)
+- Python 3.8+ (for Python bindings; matches `requires-python` and CI wheels)
 - Git
 - Make (for build automation)
 

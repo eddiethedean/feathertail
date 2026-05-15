@@ -6,7 +6,34 @@ use crate::frame::{TinyFrame, TinyColumn, ValueEnum};
 // Parallel processing operations for TinyFrame
 pub struct ParallelOps;
 
+/// Fixed-length group key: one optional value per grouping column (missing/null slots preserved).
+pub(crate) type GroupKeyRow = Vec<Option<ValueEnum>>;
+
 impl ParallelOps {
+    pub(crate) fn build_group_key_row(frame: &TinyFrame, group_keys: &[String], row_idx: usize) -> GroupKeyRow {
+        group_keys
+            .iter()
+            .map(|col_name| {
+                frame
+                    .columns
+                    .get(col_name)
+                    .and_then(|col| Self::get_value_at_index(col, row_idx))
+            })
+            .collect()
+    }
+
+    pub(crate) fn validate_group_key_columns(frame: &TinyFrame, group_keys: &[String]) -> PyResult<()> {
+        for col_name in group_keys {
+            if !frame.columns.contains_key(col_name) {
+                return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                    "Column '{}' not found",
+                    col_name
+                )));
+            }
+        }
+        Ok(())
+    }
+
     // Parallel GroupBy operations
     pub fn parallel_groupby_sum(
         frame: &TinyFrame,
@@ -19,6 +46,8 @@ impl ParallelOps {
             ));
         }
 
+        Self::validate_group_key_columns(frame, &group_keys)?;
+
         // Get the value column
         let value_col = frame.columns.get(&value_column)
             .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(
@@ -26,15 +55,10 @@ impl ParallelOps {
             ))?;
 
         // Create groups in parallel
-        let groups: HashMap<Vec<ValueEnum>, Vec<usize>> = (0..frame.length)
+        let groups: HashMap<GroupKeyRow, Vec<usize>> = (0..frame.length)
             .into_par_iter()
             .map(|i| {
-                let key: Vec<ValueEnum> = group_keys.iter()
-                    .filter_map(|col_name| {
-                        frame.columns.get(col_name)
-                            .and_then(|col| Self::get_value_at_index(col, i))
-                    })
-                    .collect();
+                let key = Self::build_group_key_row(frame, &group_keys, i);
                 (key, i)
             })
             .fold(HashMap::new, |mut acc, (key, idx)| {
@@ -49,7 +73,7 @@ impl ParallelOps {
             });
 
         // Calculate sums in parallel
-        let results: Vec<(Vec<ValueEnum>, f64)> = groups
+        let results: Vec<(GroupKeyRow, f64)> = groups
             .par_iter()
             .map(|(key, indices)| {
                 let sum = Self::calculate_sum_for_indices(value_col, indices);
@@ -73,20 +97,17 @@ impl ParallelOps {
             ));
         }
 
+        Self::validate_group_key_columns(frame, &group_keys)?;
+
         let value_col = frame.columns.get(&value_column)
             .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(
                 format!("Column '{}' not found", value_column)
             ))?;
 
-        let groups: HashMap<Vec<ValueEnum>, Vec<usize>> = (0..frame.length)
+        let groups: HashMap<GroupKeyRow, Vec<usize>> = (0..frame.length)
             .into_par_iter()
             .map(|i| {
-                let key: Vec<ValueEnum> = group_keys.iter()
-                    .filter_map(|col_name| {
-                        frame.columns.get(col_name)
-                            .and_then(|col| Self::get_value_at_index(col, i))
-                    })
-                    .collect();
+                let key = Self::build_group_key_row(frame, &group_keys, i);
                 (key, i)
             })
             .fold(HashMap::new, |mut acc, (key, idx)| {
@@ -100,7 +121,7 @@ impl ParallelOps {
                 acc
             });
 
-        let results: Vec<(Vec<ValueEnum>, f64)> = groups
+        let results: Vec<(GroupKeyRow, f64)> = groups
             .par_iter()
             .map(|(key, indices)| {
                 let mean = Self::calculate_mean_for_indices(value_col, indices);
@@ -166,17 +187,10 @@ impl ParallelOps {
             return Ok(frame.clone());
         }
 
-        // Create sort keys in parallel
-        let sort_keys: Vec<Vec<ValueEnum>> = (0..frame.length)
+        // Create sort keys in parallel (fixed arity: one optional value per sort column)
+        let sort_keys: Vec<GroupKeyRow> = (0..frame.length)
             .into_par_iter()
-            .map(|i| {
-                by.iter()
-                    .filter_map(|col_name| {
-                        frame.columns.get(col_name)
-                            .and_then(|col| Self::get_value_at_index(col, i))
-                    })
-                    .collect()
-            })
+            .map(|i| Self::build_group_key_row(frame, &by, i))
             .collect();
 
         // Sort indices in parallel
@@ -228,7 +242,7 @@ impl ParallelOps {
     }
 
     fn create_result_frame(
-        results: Vec<(Vec<ValueEnum>, f64)>,
+        results: Vec<(GroupKeyRow, f64)>,
         group_keys: Vec<String>,
         value_column: String,
     ) -> PyResult<TinyFrame> {
@@ -241,13 +255,11 @@ impl ParallelOps {
 
         // Create group key columns
         for (i, key_name) in group_keys.iter().enumerate() {
-            let mut values = Vec::new();
+            let mut values: Vec<Option<ValueEnum>> = Vec::with_capacity(results.len());
             for (key, _) in &results {
-                if let Some(val) = key.get(i) {
-                    values.push(val.clone());
-                }
+                values.push(key[i].clone());
             }
-            columns.insert(key_name.clone(), TinyColumn::Mixed(values));
+            columns.insert(key_name.clone(), TinyColumn::OptMixed(values));
         }
 
         // Create value column
@@ -317,14 +329,27 @@ impl ParallelOps {
         }
     }
 
-    fn compare_sort_keys(a: &[ValueEnum], b: &[ValueEnum], ascending: bool) -> std::cmp::Ordering {
+    fn compare_sort_keys(a: &GroupKeyRow, b: &GroupKeyRow, ascending: bool) -> std::cmp::Ordering {
         for (val_a, val_b) in a.iter().zip(b.iter()) {
-            let cmp = Self::compare_values(val_a, val_b);
+            let cmp = Self::compare_optional_values(val_a, val_b);
             if cmp != std::cmp::Ordering::Equal {
                 return if ascending { cmp } else { cmp.reverse() };
             }
         }
         std::cmp::Ordering::Equal
+    }
+
+    /// `None` orders before `Some` so null/missing keys sort consistently.
+    fn compare_optional_values(
+        a: &Option<ValueEnum>,
+        b: &Option<ValueEnum>,
+    ) -> std::cmp::Ordering {
+        match (a, b) {
+            (None, None) => std::cmp::Ordering::Equal,
+            (None, Some(_)) => std::cmp::Ordering::Less,
+            (Some(_), None) => std::cmp::Ordering::Greater,
+            (Some(va), Some(vb)) => Self::compare_values(va, vb),
+        }
     }
 
     fn compare_values(a: &ValueEnum, b: &ValueEnum) -> std::cmp::Ordering {
@@ -429,6 +454,85 @@ impl FilterCondition {
             Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
                 "Unsupported value type for filtering"
             ))
+        }
+    }
+}
+
+#[cfg(test)]
+mod parallel_groupby_tests {
+    use super::ParallelOps;
+    use crate::frame::{TinyColumn, TinyFrame, ValueEnum};
+    use std::collections::HashMap;
+
+    fn col_lens(frame: &TinyFrame) -> Vec<(String, usize)> {
+        let mut v: Vec<_> = frame
+            .columns
+            .iter()
+            .map(|(n, c)| (n.clone(), c.len()))
+            .collect();
+        v.sort_by(|a, b| a.0.cmp(&b.0));
+        v
+    }
+
+    #[test]
+    fn parallel_groupby_sum_preserves_null_vs_some_second_key() {
+        let mut columns = HashMap::new();
+        columns.insert("k1".into(), TinyColumn::Str(vec!["A".into(), "A".into()]));
+        columns.insert(
+            "k2".into(),
+            TinyColumn::OptInt(vec![None, Some(1)]),
+        );
+        columns.insert("v".into(), TinyColumn::Float(vec![10.0, 20.0]));
+        let frame = TinyFrame {
+            columns,
+            length: 2,
+            py_objects: HashMap::new(),
+        };
+
+        let out = ParallelOps::parallel_groupby_sum(
+            &frame,
+            vec!["k1".into(), "k2".into()],
+            "v".into(),
+        )
+        .expect("parallel_groupby_sum");
+
+        assert_eq!(out.length, 2, "distinct key rows should not collapse");
+        let lens: Vec<usize> = out.columns.values().map(|c| c.len()).collect();
+        assert!(lens.iter().all(|&l| l == 2), "all columns same length: {:?}", col_lens(&out));
+    }
+
+    #[test]
+    fn parallel_groupby_mean_chunked_merge_groupby_matches_row_count() {
+        let mut columns = HashMap::new();
+        columns.insert("k1".into(), TinyColumn::Str(vec!["X".into(), "X".into()]));
+        columns.insert(
+            "k2".into(),
+            TinyColumn::OptInt(vec![Some(1), None]),
+        );
+        columns.insert("v".into(), TinyColumn::Float(vec![1.0, 2.0]));
+        let frame = TinyFrame {
+            columns,
+            length: 2,
+            py_objects: HashMap::new(),
+        };
+
+        use crate::chunked::ChunkedProcessor;
+        let processor = ChunkedProcessor::new(1);
+        let merged = processor
+            .chunked_groupby_sum(&frame, vec!["k1".into(), "k2".into()], "v".into())
+            .expect("chunked_groupby_sum");
+
+        assert_eq!(merged.length, 2);
+        let lens: Vec<usize> = merged.columns.values().map(|c| c.len()).collect();
+        assert!(lens.iter().all(|&l| l == 2), "merged columns aligned: {:?}", col_lens(&merged));
+
+        let k2 = merged.columns.get("k2").expect("k2");
+        match k2 {
+            TinyColumn::OptMixed(vals) => {
+                assert!(vals.iter().any(|o| *o == Some(ValueEnum::Int(1))));
+                assert!(vals.iter().any(|o| o.is_none()));
+            }
+            _ => panic!("expected OptMixed k2 column"),
         }
     }
 }

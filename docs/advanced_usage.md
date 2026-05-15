@@ -27,35 +27,31 @@ df = df.fillna({"value": 0.0})
 ### Parallel Processing
 
 ```python
-# Many operations automatically use parallel processing
-# GroupBy operations are parallelized
-grouped = df.groupby("category").agg({"value": ["mean", "sum", "std"]})
+# Internal parallel paths apply to sorting and filtering on large frames.
+# High-level TinyGroupBy uses the API shown above (string grouping columns).
+gb = ft.TinyGroupBy(df, ["category"])
+grouped_sum = gb.sum(df, "value")
 
-# Large joins are parallelized
 large_join = df1.inner_join(df2, ["key1", "key2"], ["key1", "key2"])
 
-# Sorting large datasets uses parallel algorithms
 sorted_df = df.sort_values(["col1", "col2"], ascending=[True, False])
 ```
 
 ### Chunked Processing
 
 ```python
-# For very large datasets, process in chunks
-def process_chunk(chunk_data):
-    df = ft.TinyFrame.from_dicts(chunk_data)
-    return df.groupby("category").agg({"value": "sum"})
+# For very large datasets, process logical chunks in your pipeline (each chunk is a TinyFrame).
+def process_chunk(chunk_records):
+    df = ft.TinyFrame.from_dicts(chunk_records)
+    return ft.TinyGroupBy(df, ["category"]).sum(df, "value")
 
-# Process data in chunks
 chunk_size = 10000
-results = []
+aggregates = []
 for i in range(0, len(large_data), chunk_size):
     chunk = large_data[i:i + chunk_size]
-    result = process_chunk(chunk)
-    results.append(result)
+    aggregates.append(process_chunk(chunk))
 
-# Combine results
-final_result = ft.TinyFrame.concat(results)
+# Combine downstream by merging dict rows or joining aggregated TinyFrames as your app requires.
 ```
 
 ## Advanced Analytics
@@ -63,7 +59,6 @@ final_result = ft.TinyFrame.concat(results)
 ### Custom Aggregations
 
 ```python
-# Use multiple aggregation functions
 df = ft.TinyFrame.from_dicts([
     {"category": "A", "value": 10, "count": 1},
     {"category": "A", "value": 20, "count": 2},
@@ -71,11 +66,10 @@ df = ft.TinyFrame.from_dicts([
     {"category": "B", "value": 40, "count": 3}
 ])
 
-# Multiple aggregations
-result = df.groupby("category").agg({
-    "value": ["sum", "mean", "std", "min", "max"],
-    "count": ["sum", "count"]
-})
+gb = ft.TinyGroupBy(df, ["category"])
+sum_values = gb.sum(df, "value")
+mean_values = gb.mean(df, "value")
+sum_counts = gb.sum(df, "count")
 ```
 
 ### Correlation Analysis
@@ -101,8 +95,8 @@ stats = df.describe()
 skewness = df.skew()
 kurtosis = df.kurtosis()
 
-# Quantile analysis
-quantiles = df.quantile([0.25, 0.5, 0.75])
+# Quantile for one probability per call (e.g. median ≈ 0.5)
+q50 = df.quantile("value_column", 0.5)
 
 # Mode calculation
 modes = df.mode()
@@ -138,24 +132,26 @@ df = df.dt_day_of_week("timestamp")
 df = df.dt_day_of_year("timestamp")
 ```
 
+`to_timestamps`, `dt_year`, `dt_month`, and related methods parse strings **strictly**: whitespace-only cells, unrecognized formats, and impossible calendar dates raise `ValueError`. For optional string columns, missing values (`None`) use sentinel `0` in extracted components; `to_timestamps` on optional strings produces an optional integer timestamp column.
+
 ### Time Differences and Shifting
 
 ```python
 # Calculate time differences
 df = df.dt_diff("timestamp")
 
-# Shift timestamps
-df = df.dt_shift("timestamp", hours=1)
-df = df.dt_shift("timestamp", days=7)
+# Shift datetime strings by a delta in seconds (e.g. +1 hour = 3600)
+df = df.dt_shift("timestamp", 3600)
+df = df.dt_shift("timestamp", 7 * 24 * 3600)  # add 7 days
 ```
 
 ### Rolling and Expanding Windows
 
 ```python
-# Rolling window operations
-df = df.rolling_mean("value", window=5)
-df = df.rolling_sum("value", window=10)
-df = df.rolling_std("value", window=7)
+# Rolling window operations (window size is the second positional argument)
+df = df.rolling_mean("value", 5)
+df = df.rolling_sum("value", 10)
+df = df.rolling_std("value", 7)
 
 # Expanding window operations
 df = df.expanding_mean("value")
@@ -277,8 +273,9 @@ cross = df1.cross_join(df2)
 
 ```python
 try:
-    # Operation that might fail
-    result = df.groupby("nonexistent_column").agg({"value": "mean"})
+    # Operation that might fail (group key column missing)
+    gb = ft.TinyGroupBy(df, ["nonexistent_column"])
+    result = gb.mean(df, "value")
 except KeyError as e:
     print(f"Column not found: {e}")
     # Handle error appropriately

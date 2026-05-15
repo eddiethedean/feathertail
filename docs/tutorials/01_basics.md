@@ -11,7 +11,7 @@ This tutorial introduces you to the fundamental concepts of feathertail and show
 
 ## Prerequisites
 
-- Python 3.7+
+- Python 3.8+
 - Basic knowledge of Python
 - feathertail installed (`pip install feathertail`)
 

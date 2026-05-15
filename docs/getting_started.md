@@ -8,6 +8,8 @@ Feathertail is a high-performance Python DataFrame library powered by Rust, desi
 pip install feathertail
 ```
 
+Requires **Python 3.8+** (matches published wheels and CI).
+
 ## Quick Start
 
 ### Creating a DataFrame
@@ -63,16 +65,13 @@ cleaned = df_with_nulls.dropna()
 ### GroupBy Operations
 
 ```python
-# Group by city and calculate mean age
-grouped = df.groupby("city").agg({"age": "mean"})
-print(grouped)
+# Group-by keys must be string columns (see TinyGroupBy).
+gb = ft.TinyGroupBy(df, ["city"])
+mean_age_by_city = gb.mean(df, "age")
 
-# Multiple aggregations
-multi_agg = df.groupby("city").agg({
-    "age": ["mean", "max", "min"],
-    "name": "count"
-})
-print(multi_agg)
+# Multiple aggregations: call methods separately (each returns a TinyFrame with keys + result column).
+counts = gb.count(df)
+sums = gb.sum(df, "salary")
 ```
 
 ### Join Operations
@@ -126,6 +125,8 @@ ts_df = ts_df.dt_month("timestamp")
 ts_df = ts_df.dt_hour("timestamp")
 ```
 
+String parsing for `to_timestamps` and datetime components is strict: empty strings, invalid formats, and impossible calendar dates raise `ValueError`. Optional string columns (`None`) still yield sentinel `0` in component extraction; `to_timestamps` on optional strings writes an optional integer timestamp column with `None` where the source was missing.
+
 ### String Operations
 
 ```python
@@ -170,7 +171,7 @@ Feathertail is designed to be compatible with pandas. Here are the main differen
 | `pd.DataFrame()` | `ft.TinyFrame.from_dicts()` | Constructor |
 | `df.head()` | `df.head()` | Same |
 | `df.describe()` | `df.describe()` | Same |
-| `df.groupby()` | `df.groupby()` | Same |
+| `df.groupby(...)` | `ft.TinyGroupBy(df, [...]).mean(df, "col")` etc. | String key columns only; one aggregation per call |
 | `df.merge()` | `df.inner_join()` | Different method name |
 | `df.str.upper()` | `df.str_upper()` | Different method name |
 

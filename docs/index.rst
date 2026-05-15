@@ -19,7 +19,8 @@ Features
 * **Memory Efficient**: Optimized memory usage with SIMD and parallel processing
 * **Pandas Compatible**: Familiar API that works like pandas
 * **Type Safe**: Strong typing with automatic type inference
-* **Comprehensive**: Full suite of DataFrame operations including joins, analytics, and time series
+* **Python 3.8+**: Supported on PyPI wheels and CI (Linux, macOS ARM64, Windows x86\_64).
+* **Strict datetime parsing**: ``to_timestamps`` and ``dt_*`` string parsing raise ``ValueError`` for empty, invalid, or impossible dates; optional ``None`` cells use sentinel ``0`` in extracted components unless documented otherwise.
 
 Quick Start
 -----------
@@ -44,8 +45,9 @@ Quick Start
    filtered = df.filter("age", ">", 25)
    sorted_df = df.sort_values("age", ascending=False)
    
-   # GroupBy operations
-   grouped = df.groupby("city").agg({"age": "mean"})
+   # GroupBy operations (string keys only)
+   gb = ft.TinyGroupBy(df, ["city"])
+   grouped = gb.mean(df, "age")
 
 API Reference
 -------------

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use pyo3::prelude::*;
 use crate::frame::{TinyFrame, TinyColumn, ValueEnum};
-use crate::parallel::ParallelOps;
+use crate::parallel::{GroupKeyRow, ParallelOps};
 
 // Chunked processing for large datasets
 pub struct ChunkedProcessor {
@@ -137,12 +137,14 @@ impl ChunkedProcessor {
         frame: &TinyFrame,
         group_keys: Vec<String>,
         aggregator: F,
-    ) -> PyResult<HashMap<Vec<ValueEnum>, R>>
+    ) -> PyResult<HashMap<GroupKeyRow, R>>
     where
         F: Fn(&[usize], &TinyFrame) -> PyResult<R> + Send + Sync,
         R: Clone + Send + Sync,
     {
-        let mut global_groups: HashMap<Vec<ValueEnum>, Vec<usize>> = HashMap::new();
+        ParallelOps::validate_group_key_columns(frame, &group_keys)?;
+
+        let mut global_groups: HashMap<GroupKeyRow, Vec<usize>> = HashMap::new();
         let num_chunks = (frame.length + self.chunk_size - 1) / self.chunk_size;
 
         for chunk_idx in 0..num_chunks {
@@ -151,20 +153,12 @@ impl ChunkedProcessor {
             
             let chunk = self.create_chunk(frame, start, end)?;
             
-            // Group rows in this chunk
             for i in 0..chunk.length {
-                let key: Vec<ValueEnum> = group_keys.iter()
-                    .filter_map(|col_name| {
-                        chunk.columns.get(col_name)
-                            .and_then(|col| Self::get_value_at_index(col, i))
-                    })
-                    .collect();
-                
+                let key = ParallelOps::build_group_key_row(&chunk, &group_keys, i);
                 global_groups.entry(key).or_insert_with(Vec::new).push(start + i);
             }
         }
 
-        // Apply aggregation to each group
         let mut results = HashMap::new();
         for (key, indices) in global_groups {
             let result = aggregator(&indices, frame)?;
@@ -260,15 +254,25 @@ impl ChunkedProcessor {
         let column_names: Vec<String> = chunks[0].columns.keys().cloned().collect();
 
         for col_name in column_names {
-            let mut merged_col = self.merge_column(&chunks, &col_name)?;
+            let merged_col = self.merge_column(&chunks, &col_name)?;
             merged_columns.insert(col_name, merged_col);
         }
 
         Ok(TinyFrame {
             columns: merged_columns,
             length: total_length,
-            py_objects: chunks[0].py_objects.clone(),
+            py_objects: Self::merge_py_object_maps(&chunks),
         })
+    }
+
+    fn merge_py_object_maps(chunks: &[TinyFrame]) -> HashMap<u64, PyObject> {
+        let mut merged = HashMap::new();
+        for chunk in chunks {
+            for (&id, obj) in &chunk.py_objects {
+                merged.entry(id).or_insert_with(|| obj.clone());
+            }
+        }
+        merged
     }
 
     fn merge_column(&self, chunks: &[TinyFrame], col_name: &str) -> PyResult<TinyColumn> {
@@ -282,8 +286,18 @@ impl ChunkedProcessor {
             TinyColumn::Int(_) => {
                 let mut merged: Vec<i64> = Vec::new();
                 for chunk in chunks {
-                    if let TinyColumn::Int(v) = chunk.columns.get(col_name).unwrap() {
-                        merged.extend(v);
+                    let col = chunk.columns.get(col_name).ok_or_else(|| {
+                        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                            "Column '{}' not found in chunk during merge",
+                            col_name
+                        ))
+                    })?;
+                    match col {
+                        TinyColumn::Int(v) => merged.extend_from_slice(v),
+                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                            "Column '{}' has inconsistent type across chunks",
+                            col_name
+                        ))),
                     }
                 }
                 Ok(TinyColumn::Int(merged))
@@ -291,8 +305,18 @@ impl ChunkedProcessor {
             TinyColumn::Float(_) => {
                 let mut merged: Vec<f64> = Vec::new();
                 for chunk in chunks {
-                    if let TinyColumn::Float(v) = chunk.columns.get(col_name).unwrap() {
-                        merged.extend(v);
+                    let col = chunk.columns.get(col_name).ok_or_else(|| {
+                        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                            "Column '{}' not found in chunk during merge",
+                            col_name
+                        ))
+                    })?;
+                    match col {
+                        TinyColumn::Float(v) => merged.extend_from_slice(v),
+                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                            "Column '{}' has inconsistent type across chunks",
+                            col_name
+                        ))),
                     }
                 }
                 Ok(TinyColumn::Float(merged))
@@ -300,8 +324,18 @@ impl ChunkedProcessor {
             TinyColumn::Str(_) => {
                 let mut merged: Vec<String> = Vec::new();
                 for chunk in chunks {
-                    if let TinyColumn::Str(v) = chunk.columns.get(col_name).unwrap() {
-                        merged.extend(v.clone());
+                    let col = chunk.columns.get(col_name).ok_or_else(|| {
+                        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                            "Column '{}' not found in chunk during merge",
+                            col_name
+                        ))
+                    })?;
+                    match col {
+                        TinyColumn::Str(v) => merged.extend(v.iter().cloned()),
+                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                            "Column '{}' has inconsistent type across chunks",
+                            col_name
+                        ))),
                     }
                 }
                 Ok(TinyColumn::Str(merged))
@@ -309,8 +343,18 @@ impl ChunkedProcessor {
             TinyColumn::Bool(_) => {
                 let mut merged: Vec<bool> = Vec::new();
                 for chunk in chunks {
-                    if let TinyColumn::Bool(v) = chunk.columns.get(col_name).unwrap() {
-                        merged.extend(v);
+                    let col = chunk.columns.get(col_name).ok_or_else(|| {
+                        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                            "Column '{}' not found in chunk during merge",
+                            col_name
+                        ))
+                    })?;
+                    match col {
+                        TinyColumn::Bool(v) => merged.extend_from_slice(v),
+                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                            "Column '{}' has inconsistent type across chunks",
+                            col_name
+                        ))),
                     }
                 }
                 Ok(TinyColumn::Bool(merged))
@@ -331,41 +375,43 @@ impl ChunkedProcessor {
             return Ok(TinyFrame::new());
         }
 
-        // Aggregate results by group keys
-        let mut aggregated: HashMap<Vec<ValueEnum>, f64> = HashMap::new();
+        let mut aggregated: HashMap<GroupKeyRow, f64> = HashMap::new();
 
         for chunk in chunk_results {
+            ParallelOps::validate_group_key_columns(&chunk, &group_keys)?;
+            if !chunk.columns.contains_key(&value_column) {
+                return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                    "Column '{}' not found",
+                    value_column
+                )));
+            }
+
             for i in 0..chunk.length {
-                let key: Vec<ValueEnum> = group_keys.iter()
-                    .filter_map(|col_name| {
-                        chunk.columns.get(col_name)
-                            .and_then(|col| Self::get_value_at_index(col, i))
-                    })
-                    .collect();
+                let key = ParallelOps::build_group_key_row(&chunk, &group_keys, i);
 
                 if let Some(TinyColumn::Float(values)) = chunk.columns.get(&value_column) {
                     let value = values[i];
                     *aggregated.entry(key).or_insert(0.0) += value;
+                } else {
+                    return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                        "Value column '{}' must be Float for chunked groupby merge",
+                        value_column
+                    )));
                 }
             }
         }
 
-        // Convert back to TinyFrame
         let mut columns: HashMap<String, TinyColumn> = HashMap::new();
         let length = aggregated.len();
 
-        // Create group key columns
         for (i, key_name) in group_keys.iter().enumerate() {
-            let mut values = Vec::new();
+            let mut values: Vec<Option<ValueEnum>> = Vec::with_capacity(aggregated.len());
             for (key, _) in &aggregated {
-                if let Some(val) = key.get(i) {
-                    values.push(val.clone());
-                }
+                values.push(key[i].clone());
             }
-            columns.insert(key_name.clone(), TinyColumn::Mixed(values));
+            columns.insert(key_name.clone(), TinyColumn::OptMixed(values));
         }
 
-        // Create value column
         let value_values: Vec<f64> = aggregated.values().cloned().collect();
         columns.insert(value_column, TinyColumn::Float(value_values));
 
@@ -405,23 +451,6 @@ impl ChunkedProcessor {
 
         let merged = self.merge_chunks(all_chunks)?;
         ParallelOps::parallel_sort(&merged, by, ascending)
-    }
-
-    fn get_value_at_index(col: &TinyColumn, index: usize) -> Option<ValueEnum> {
-        match col {
-            TinyColumn::Int(v) => v.get(index).map(|&val| ValueEnum::Int(val)),
-            TinyColumn::Float(v) => v.get(index).map(|&val| ValueEnum::Float(val)),
-            TinyColumn::Str(v) => v.get(index).map(|val| ValueEnum::Str(val.clone())),
-            TinyColumn::Bool(v) => v.get(index).map(|&val| ValueEnum::Bool(val)),
-            TinyColumn::PyObject(v) => v.get(index).map(|&val| ValueEnum::PyObjectId(val)),
-            TinyColumn::Mixed(v) => v.get(index).and_then(|val| Some(val.clone())),
-            TinyColumn::OptInt(v) => v.get(index).and_then(|val| val.map(ValueEnum::Int)),
-            TinyColumn::OptFloat(v) => v.get(index).and_then(|val| val.map(ValueEnum::Float)),
-            TinyColumn::OptStr(v) => v.get(index).and_then(|val| val.as_ref().map(|s| ValueEnum::Str(s.clone()))),
-            TinyColumn::OptBool(v) => v.get(index).and_then(|val| val.map(ValueEnum::Bool)),
-            TinyColumn::OptPyObject(v) => v.get(index).and_then(|val| val.map(ValueEnum::PyObjectId)),
-            TinyColumn::OptMixed(v) => v.get(index).and_then(|val| val.clone()),
-        }
     }
 }
 

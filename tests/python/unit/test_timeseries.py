@@ -49,24 +49,23 @@ class TestTimeSeriesOperations:
         assert result.len() == 4
 
     def test_to_timestamps_empty_strings(self):
-        """Test timestamp conversion with empty strings"""
+        """Empty datetime strings raise ValueError instead of silently becoming 0."""
         data = [
             {"datetime": "", "value": 1},
             {"datetime": "2023-01-01 10:30:00", "value": 2},
             {"datetime": "", "value": 3},
         ]
         frame = ft.TinyFrame.from_dicts(data)
-        
-        result = frame.to_timestamps("datetime")
-        
-        assert "datetime_timestamp" in result.columns
-        assert result.len() == 3
-        
-        # Empty strings should result in 0 timestamps
-        timestamps = self.get_column_data(result, "datetime_timestamp")
-        assert timestamps[0] == 0
-        assert timestamps[2] == 0
-        assert timestamps[1] > 0
+
+        with pytest.raises(ValueError):
+            frame.to_timestamps("datetime")
+
+    def test_to_timestamps_invalid_string(self):
+        """Unparseable datetime strings raise ValueError."""
+        data = [{"datetime": "not-a-real-date", "value": 1}]
+        frame = ft.TinyFrame.from_dicts(data)
+        with pytest.raises(ValueError):
+            frame.to_timestamps("datetime")
 
     def test_dt_year(self):
         """Test year extraction"""
@@ -365,37 +364,35 @@ class TestTimeSeriesOperations:
         assert all(year == 2023 for year in years)
 
     def test_time_series_invalid_datetime_format(self):
-        """Test time series operations with invalid datetime format"""
+        """Invalid datetime strings raise ValueError (strict parsing)."""
         data = [
             {"datetime": "invalid-date", "value": 1},
             {"datetime": "2023-01-01 10:00:00", "value": 2},
         ]
         frame = ft.TinyFrame.from_dicts(data)
-        
-        result = frame.dt_year("datetime")
-        
-        assert "datetime_year" in result.columns
-        assert result.len() == 2
-        
-        years = self.get_column_data(result, "datetime_year")
-        assert years[0] == 0  # Invalid date should result in 0
-        assert years[1] == 2023
+
+        with pytest.raises(ValueError):
+            frame.dt_year("datetime")
 
     def test_time_series_edge_cases(self):
-        """Test time series operations with edge cases"""
+        """Valid edge-case datetimes parse correctly."""
         data = [
-            {"datetime": "2023-02-29 10:00:00", "value": 1},  # Invalid date (2023 is not leap year)
             {"datetime": "2023-01-01 00:00:00", "value": 2},  # Midnight
             {"datetime": "2023-12-31 23:59:59", "value": 3},  # End of year
         ]
         frame = ft.TinyFrame.from_dicts(data)
-        
+
         result = frame.dt_year("datetime")
-        
+
         assert "datetime_year" in result.columns
-        assert result.len() == 3
-        
+        assert result.len() == 2
+
         years = self.get_column_data(result, "datetime_year")
-        assert years[0] == 0  # Invalid date should result in 0
-        assert years[1] == 2023
-        assert years[2] == 2023
+        assert years == [2023, 2023]
+
+    def test_time_series_invalid_calendar_date_raises(self):
+        """Nonexistent calendar dates (e.g. leap day in non-leap year) raise ValueError."""
+        data = [{"datetime": "2023-02-29 10:00:00", "value": 1}]
+        frame = ft.TinyFrame.from_dicts(data)
+        with pytest.raises(ValueError):
+            frame.dt_year("datetime")

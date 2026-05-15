@@ -1,6 +1,5 @@
 use pyo3::prelude::*;
-use time::{OffsetDateTime, PrimitiveDateTime, Date, Time, Month, Weekday};
-use std::collections::HashMap;
+use time::{OffsetDateTime, PrimitiveDateTime, Date, Time};
 use crate::frame::{TinyFrame, TinyColumn};
 
 /// Time series operations for TinyFrame
@@ -21,15 +20,22 @@ impl TimeSeriesOps {
 
     /// Parse a single datetime string to timestamp
     fn parse_datetime_string(input: &str) -> PyResult<i64> {
-        // Handle empty strings
-        if input.is_empty() {
-            return Ok(0);
+        let trimmed = input.trim();
+        if trimmed.is_empty() {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "Empty datetime string cannot be parsed",
+            ));
         }
 
-        // Try common datetime formats using time crate
+        let format_date_only =
+            time::format_description::parse("[year]-[month]-[day]").unwrap();
+        if let Ok(date) = Date::parse(trimmed, &format_date_only) {
+            let dt = PrimitiveDateTime::new(date, Time::MIDNIGHT);
+            return Ok(dt.assume_utc().unix_timestamp());
+        }
+
         let formats = [
             time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap(),
-            time::format_description::parse("[year]-[month]-[day]").unwrap(),
             time::format_description::parse("[year]-[month]-[day]T[hour]:[minute]:[second]").unwrap(),
             time::format_description::parse("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]").unwrap(),
             time::format_description::parse("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z").unwrap(),
@@ -37,13 +43,15 @@ impl TimeSeriesOps {
         ];
 
         for format in &formats {
-            if let Ok(dt) = PrimitiveDateTime::parse(input, format) {
+            if let Ok(dt) = PrimitiveDateTime::parse(trimmed, format) {
                 return Ok(dt.assume_utc().unix_timestamp());
             }
         }
 
-        // If all parsing fails, return 0 instead of error
-        Ok(0)
+        Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+            "Could not parse datetime string: {:?}",
+            input.chars().take(64).collect::<String>()
+        )))
     }
 
     /// Extract year from datetime timestamps
@@ -183,22 +191,31 @@ impl TimeSeriesOps {
                 format!("Column '{}' not found", column)
             ))?;
 
-        let strings = match col {
-            TinyColumn::Str(v) => v.clone(),
+        let new_ts_col = match col {
+            TinyColumn::Str(v) => {
+                let mut timestamps = Vec::with_capacity(v.len());
+                for s in v {
+                    timestamps.push(Self::parse_datetime_string(s)?);
+                }
+                TinyColumn::Int(timestamps)
+            }
             TinyColumn::OptStr(v) => {
-                v.iter()
-                    .map(|opt| opt.as_ref().map(|s| s.clone()).unwrap_or_else(|| "".to_string()))
-                    .collect()
-            },
+                let mut timestamps: Vec<Option<i64>> = Vec::with_capacity(v.len());
+                for opt in v {
+                    match opt {
+                        None => timestamps.push(None),
+                        Some(s) => timestamps.push(Some(Self::parse_datetime_string(&s)?)),
+                    }
+                }
+                TinyColumn::OptInt(timestamps)
+            }
             _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
                 "to_timestamps only supported on string columns"
             )),
         };
 
-        let timestamps = Self::parse_datetime_strings(strings)?;
-        
         let mut new_columns = frame.columns.clone();
-        new_columns.insert(format!("{}_timestamp", column), TinyColumn::Int(timestamps));
+        new_columns.insert(format!("{}_timestamp", column), new_ts_col);
         
         Ok(TinyFrame {
             columns: new_columns,
@@ -386,18 +403,22 @@ impl TimeSeriesOps {
         match col {
             TinyColumn::Str(v) => Self::parse_datetime_strings(v.clone()),
             TinyColumn::OptStr(v) => {
-                let strings: Vec<String> = v.iter()
-                    .map(|opt| opt.as_ref().map(|s| s.clone()).unwrap_or_else(|| "".to_string()))
-                    .collect();
-                Self::parse_datetime_strings(strings)
-            },
+                let mut timestamps = Vec::with_capacity(v.len());
+                for opt in v {
+                    match opt {
+                        None => timestamps.push(0),
+                        Some(s) => timestamps.push(Self::parse_datetime_string(s)?),
+                    }
+                }
+                Ok(timestamps)
+            }
             TinyColumn::Int(v) => Ok(v.clone()), // Already timestamps
             TinyColumn::OptInt(v) => {
                 let timestamps: Vec<i64> = v.iter()
                     .map(|opt| opt.unwrap_or(0))
                     .collect();
                 Ok(timestamps)
-            },
+            }
             _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
                 "Time series operations only supported on string or integer columns"
             )),

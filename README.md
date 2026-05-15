@@ -9,7 +9,7 @@ A high-performance Python DataFrame library powered by Rust — designed for fle
 ### 🚀 **Core DataFrame Operations**
 - ✅ Build `TinyFrame` from Python dict records (`from_dicts`)
 - ✅ Automatic type inference, including mixed-type and optional columns
-- ✅ Intelligent fallback to Python objects when Rust-native types aren't possible
+- ✅ Intelligent fallback to Python objects when Rust-native types aren't possible (stored by runtime pointer identity for the lifetime of the frame—keep references alive while using `TinyFrame`)
 - ✅ Flexible `fillna` to handle missing data
 - ✅ Powerful `cast_column` to convert columns between types
 - ✅ Smart `edit_column`: edits that automatically adjust column type if needed
@@ -19,14 +19,14 @@ A high-performance Python DataFrame library powered by Rust — designed for fle
 ### 🔗 **Advanced Data Operations**
 - ✅ **Join Operations**: Inner, left, right, outer, and cross joins
 - ✅ **Filtering & Sorting**: Advanced filtering with multiple conditions and multi-column sorting
-- ✅ **GroupBy Aggregations**: Comprehensive statistical operations (sum, mean, min, max, std, var, median, first, last, count, size)
+- ✅ **GroupBy Aggregations**: `TinyGroupBy` with **string key columns** — sum, mean, min, max, std, var, median, first, last, count, size (call each aggregation separately)
 - ✅ **Window Functions**: Rolling and expanding window operations
 - ✅ **Ranking Functions**: Rank calculation with multiple methods and percentage change
 
 ### 📊 **Advanced Analytics**
 - ✅ **Descriptive Statistics**: `describe()`, `skew()`, `kurtosis()`, `quantile()`, `mode()`, `nunique()`
 - ✅ **Correlation & Covariance**: Full correlation/covariance matrices and pairwise calculations
-- ✅ **Time Series Operations**: DateTime parsing, component extraction, time differences, and shifting
+- ✅ **Time Series Operations**: DateTime parsing (strict: invalid or empty strings raise `ValueError`), component extraction, time differences, and shifting
 - ✅ **String Operations**: Case conversion, whitespace removal, replacement, splitting, pattern matching, length, and concatenation
 - ✅ **Data Validation**: Not null, range, pattern, uniqueness validation with comprehensive reporting
 
@@ -43,7 +43,7 @@ A high-performance Python DataFrame library powered by Rust — designed for fle
 - ✅ **Logging & Debugging**: Built-in logging system with performance monitoring
 - ✅ **Profiling Tools**: Performance profiling and optimization insights
 - ✅ **Development Tools**: Pre-commit hooks, automated testing, and development scripts
-- ✅ **242 Comprehensive Tests**: Full test coverage running in about 0.2 seconds
+- ✅ **244+ Comprehensive Tests**: Full test coverage running in well under one second locally
 
 ---
 
@@ -109,10 +109,11 @@ print(sorted_frame.to_dicts())
 ### GroupBy Aggregations
 
 ```python
-# Comprehensive statistical aggregations
-groupby = frame.groupby("city")
-stats = groupby.agg([("age", "mean"), ("score", "max"), ("name", "count")])
-print(stats.to_dicts())
+# Group keys must be string columns. Build TinyGroupBy, then aggregate with the frame:
+gb = ft.TinyGroupBy(frame, ["city"])
+mean_age = gb.mean(frame, "age")
+max_score = gb.max(frame, "score")
+row_counts = gb.count(frame)
 ```
 
 ### Join Operations
@@ -146,8 +147,8 @@ time_data = [
     {"timestamp": "2023-01-01 11:00:00", "value": 120},
 ]
 time_frame = ft.TinyFrame.from_dicts(time_data)
-time_frame = time_frame.to_timestamps("timestamp")
-time_frame = time_frame.dt_year("timestamp_ts")
+time_frame = time_frame.to_timestamps("timestamp")  # adds `timestamp_timestamp` (Unix seconds)
+time_frame = time_frame.dt_year("timestamp")      # still parses from original string column
 print(time_frame.to_dicts())
 ```
 
@@ -187,11 +188,12 @@ print(f"Validation summary: {validation_summary}")
 ### SIMD-Accelerated Operations
 ```python
 # Automatic SIMD optimization for numerical operations
-large_data = [{"value": i * 1.5} for i in range(100000)]
+large_data = [{"category": "A" if i % 2 == 0 else "B", "value": i * 1.5} for i in range(100000)]
 large_frame = ft.TinyFrame.from_dicts(large_data)
 
-# These operations use SIMD for maximum performance
-sum_result = large_frame.groupby("value").agg([("value", "sum")])
+# TinyGroupBy keys must be string columns; aggregates run over numeric columns
+gb = ft.TinyGroupBy(large_frame, ["category"])
+sum_result = gb.sum(large_frame, "value")
 ```
 
 ### Parallel Processing
@@ -289,6 +291,7 @@ feathertail uses GitHub Actions to automatically build and test wheels for all m
 ### Quality Assurance
 - ✅ **Rust compilation** with proper target architecture
 - ✅ **Python wheel building** with maturin
+- ✅ **CI test matrix**: `pytest` on Python **3.8–3.12** on Ubuntu, macOS, and Windows (release wheels built for the same range)
 - ✅ **Installation testing** from temp directories
 - ✅ **Import verification** to ensure module works correctly
 - ✅ **Cross-platform compatibility** testing
@@ -298,7 +301,7 @@ feathertail uses GitHub Actions to automatically build and test wheels for all m
 ## 🧪 Testing
 
 ```bash
-# Run all tests (242 tests in ~0.2 seconds)
+# Run all tests (Rust + Python; 244+ Python unit tests plus Rust tests)
 make test
 
 # Run specific test categories
@@ -341,7 +344,7 @@ This library follows the same spirit: gentle on dependencies, elegant in design,
 
 ## 📊 Performance Benchmarks
 
-- **242 comprehensive tests** run in well under one second locally
+- **244+ Python unit tests** plus Rust tests run in well under one second locally
 - **SIMD-accelerated** numerical operations
 - **Parallel processing** for multi-core performance
 - **Memory-optimized** with string interning and lazy evaluation
