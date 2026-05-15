@@ -7,8 +7,8 @@ project = "feathertail"
 copyright = "2024-2026, Odos Matthews"
 author = "Odos Matthews"
 # Keep in sync with pyproject.toml / Cargo.toml package version for releases.
-version = "0.6.0"
-release = "0.6.0"
+version = "0.6.1"
+release = "0.6.1"
 
 extensions = [
     "sphinx.ext.autodoc",
