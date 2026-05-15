@@ -4,9 +4,11 @@ import sys
 sys.path.insert(0, os.path.abspath(".."))
 
 project = "feathertail"
-copyright = "2024, Odos Matthews"
+copyright = "2024-2026, Odos Matthews"
 author = "Odos Matthews"
-release = "0.4.0"
+# Keep in sync with pyproject.toml / Cargo.toml package version for releases.
+version = "0.6.0"
+release = "0.6.0"
 
 extensions = [
     "sphinx.ext.autodoc",

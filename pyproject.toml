@@ -20,9 +20,16 @@ classifiers = [
     "Programming Language :: Rust",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Typing :: Typed",
 ]
 dependencies = []
 
+[project.urls]
+Homepage = "https://github.com/eddiethedean/feathertail"
+Documentation = "https://github.com/eddiethedean/feathertail#readme"
+Repository = "https://github.com/eddiethedean/feathertail"
+Issues = "https://github.com/eddiethedean/feathertail/issues"
+
 [tool.ty.environment]
-# Inline stubs for the maturin PyO3 module so `ty check` resolves `feathertail` without a wheel install.
-extra-paths = ["typings"]
+# Root `feathertail.pyi` is bundled in wheels via maturin; extra-paths keeps `ty check` working in-repo.
+extra-paths = ["."]
