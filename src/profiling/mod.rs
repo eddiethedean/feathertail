@@ -1,8 +1,7 @@
-use pyo3::prelude::*;
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
-use std::sync::Mutex;
 use std::sync::Arc;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 /// Performance profiler for feathertail operations
 #[derive(Debug, Clone)]
@@ -81,19 +80,43 @@ impl Profiler {
     pub fn get_summary(&self) -> HashMap<String, String> {
         let mut summary = HashMap::new();
         summary.insert("name".to_string(), self.name.clone());
-        summary.insert("duration_ms".to_string(), format!("{:.2}", self.get_duration_ms()));
-        summary.insert("memory_before_mb".to_string(), format!("{:.2}", self.memory_before));
-        summary.insert("memory_after_mb".to_string(), format!("{:.2}", self.memory_after));
-        summary.insert("memory_delta_mb".to_string(), format!("{:.2}", self.get_memory_delta()));
-        summary.insert("rows_processed".to_string(), self.rows_processed.to_string());
-        summary.insert("columns_processed".to_string(), self.columns_processed.to_string());
-        summary.insert("rows_per_second".to_string(), format!("{:.0}", self.get_rows_per_second()));
-        summary.insert("memory_efficiency".to_string(), format!("{:.4}", self.get_memory_efficiency()));
-        
+        summary.insert(
+            "duration_ms".to_string(),
+            format!("{:.2}", self.get_duration_ms()),
+        );
+        summary.insert(
+            "memory_before_mb".to_string(),
+            format!("{:.2}", self.memory_before),
+        );
+        summary.insert(
+            "memory_after_mb".to_string(),
+            format!("{:.2}", self.memory_after),
+        );
+        summary.insert(
+            "memory_delta_mb".to_string(),
+            format!("{:.2}", self.get_memory_delta()),
+        );
+        summary.insert(
+            "rows_processed".to_string(),
+            self.rows_processed.to_string(),
+        );
+        summary.insert(
+            "columns_processed".to_string(),
+            self.columns_processed.to_string(),
+        );
+        summary.insert(
+            "rows_per_second".to_string(),
+            format!("{:.0}", self.get_rows_per_second()),
+        );
+        summary.insert(
+            "memory_efficiency".to_string(),
+            format!("{:.4}", self.get_memory_efficiency()),
+        );
+
         for (key, value) in &self.custom_metrics {
             summary.insert(key.clone(), format!("{:.2}", value));
         }
-        
+
         summary
     }
 }
@@ -156,13 +179,14 @@ pub fn end_profiling(profiler: Profiler) {
     }
 
     let mut state = PROFILER_STATE.lock().unwrap();
-    
+
     // Add to profiles
-    state.profiles
+    state
+        .profiles
         .entry(profiler.name.clone())
         .or_insert_with(Vec::new)
         .push(profiler.clone());
-    
+
     // Update totals
     state.total_operations += 1;
     state.total_duration_ms += profiler.get_duration_ms();
@@ -173,27 +197,40 @@ pub fn end_profiling(profiler: Profiler) {
 /// Get profiling statistics for an operation
 pub fn get_operation_stats(operation: &str) -> Option<HashMap<String, f64>> {
     let state = PROFILER_STATE.lock().unwrap();
-    
+
     if let Some(profiles) = state.profiles.get(operation) {
         if profiles.is_empty() {
             return None;
         }
-        
+
         let mut stats = HashMap::new();
         let count = profiles.len();
-        
+
         // Calculate averages
         let avg_duration = profiles.iter().map(|p| p.get_duration_ms()).sum::<f64>() / count as f64;
         let avg_memory = profiles.iter().map(|p| p.memory_after).sum::<f64>() / count as f64;
-        let avg_rows_per_sec = profiles.iter().map(|p| p.get_rows_per_second()).sum::<f64>() / count as f64;
-        
+        let avg_rows_per_sec = profiles
+            .iter()
+            .map(|p| p.get_rows_per_second())
+            .sum::<f64>()
+            / count as f64;
+
         // Calculate min/max
-        let min_duration = profiles.iter().map(|p| p.get_duration_ms()).fold(f64::INFINITY, f64::min);
-        let max_duration = profiles.iter().map(|p| p.get_duration_ms()).fold(0.0, f64::max);
-        
-        let min_memory = profiles.iter().map(|p| p.memory_after).fold(f64::INFINITY, f64::min);
+        let min_duration = profiles
+            .iter()
+            .map(|p| p.get_duration_ms())
+            .fold(f64::INFINITY, f64::min);
+        let max_duration = profiles
+            .iter()
+            .map(|p| p.get_duration_ms())
+            .fold(0.0, f64::max);
+
+        let min_memory = profiles
+            .iter()
+            .map(|p| p.memory_after)
+            .fold(f64::INFINITY, f64::min);
         let max_memory = profiles.iter().map(|p| p.memory_after).fold(0.0, f64::max);
-        
+
         stats.insert("count".to_string(), count as f64);
         stats.insert("avg_duration_ms".to_string(), avg_duration);
         stats.insert("min_duration_ms".to_string(), min_duration);
@@ -202,7 +239,7 @@ pub fn get_operation_stats(operation: &str) -> Option<HashMap<String, f64>> {
         stats.insert("min_memory_mb".to_string(), min_memory);
         stats.insert("max_memory_mb".to_string(), max_memory);
         stats.insert("avg_rows_per_second".to_string(), avg_rows_per_sec);
-        
+
         Some(stats)
     } else {
         None
@@ -213,17 +250,29 @@ pub fn get_operation_stats(operation: &str) -> Option<HashMap<String, f64>> {
 pub fn get_overall_stats() -> HashMap<String, f64> {
     let state = PROFILER_STATE.lock().unwrap();
     let mut stats = HashMap::new();
-    
-    stats.insert("total_operations".to_string(), state.total_operations as f64);
+
+    stats.insert(
+        "total_operations".to_string(),
+        state.total_operations as f64,
+    );
     stats.insert("total_duration_ms".to_string(), state.total_duration_ms);
     stats.insert("total_memory_mb".to_string(), state.total_memory_mb);
-    stats.insert("total_rows_processed".to_string(), state.total_rows_processed as f64);
-    
+    stats.insert(
+        "total_rows_processed".to_string(),
+        state.total_rows_processed as f64,
+    );
+
     if state.total_operations > 0 {
-        stats.insert("avg_duration_ms".to_string(), state.total_duration_ms / state.total_operations as f64);
-        stats.insert("avg_memory_mb".to_string(), state.total_memory_mb / state.total_operations as f64);
+        stats.insert(
+            "avg_duration_ms".to_string(),
+            state.total_duration_ms / state.total_operations as f64,
+        );
+        stats.insert(
+            "avg_memory_mb".to_string(),
+            state.total_memory_mb / state.total_operations as f64,
+        );
     }
-    
+
     stats
 }
 
@@ -241,42 +290,58 @@ pub fn clear_profiling_data() {
 pub fn get_profiling_report() -> String {
     let state = PROFILER_STATE.lock().unwrap();
     let mut report = String::new();
-    
+
     report.push_str("Feathertail Profiling Report\n");
     report.push_str("============================\n\n");
-    
+
     // Overall statistics
     report.push_str("Overall Statistics:\n");
     report.push_str(&format!("  Total Operations: {}\n", state.total_operations));
-    report.push_str(&format!("  Total Duration: {:.2}ms\n", state.total_duration_ms));
+    report.push_str(&format!(
+        "  Total Duration: {:.2}ms\n",
+        state.total_duration_ms
+    ));
     report.push_str(&format!("  Total Memory: {:.2}MB\n", state.total_memory_mb));
-    report.push_str(&format!("  Total Rows Processed: {}\n", state.total_rows_processed));
-    
+    report.push_str(&format!(
+        "  Total Rows Processed: {}\n",
+        state.total_rows_processed
+    ));
+
     if state.total_operations > 0 {
-        report.push_str(&format!("  Average Duration: {:.2}ms\n", state.total_duration_ms / state.total_operations as f64));
-        report.push_str(&format!("  Average Memory: {:.2}MB\n", state.total_memory_mb / state.total_operations as f64));
+        report.push_str(&format!(
+            "  Average Duration: {:.2}ms\n",
+            state.total_duration_ms / state.total_operations as f64
+        ));
+        report.push_str(&format!(
+            "  Average Memory: {:.2}MB\n",
+            state.total_memory_mb / state.total_operations as f64
+        ));
     }
-    
+
     report.push_str("\nOperation Statistics:\n");
-    
+
     // Per-operation statistics
     for (operation, profiles) in &state.profiles {
         if profiles.is_empty() {
             continue;
         }
-        
+
         let count = profiles.len();
         let avg_duration = profiles.iter().map(|p| p.get_duration_ms()).sum::<f64>() / count as f64;
         let avg_memory = profiles.iter().map(|p| p.memory_after).sum::<f64>() / count as f64;
-        let avg_rows_per_sec = profiles.iter().map(|p| p.get_rows_per_second()).sum::<f64>() / count as f64;
-        
+        let avg_rows_per_sec = profiles
+            .iter()
+            .map(|p| p.get_rows_per_second())
+            .sum::<f64>()
+            / count as f64;
+
         report.push_str(&format!("  {}:\n", operation));
         report.push_str(&format!("    Count: {}\n", count));
         report.push_str(&format!("    Avg Duration: {:.2}ms\n", avg_duration));
         report.push_str(&format!("    Avg Memory: {:.2}MB\n", avg_memory));
         report.push_str(&format!("    Avg Rows/sec: {:.0}\n", avg_rows_per_sec));
     }
-    
+
     report
 }
 
@@ -303,12 +368,12 @@ where
 {
     let mut profiler = start_profiling(name);
     profiler.set_memory_before(get_memory_usage());
-    
+
     let result = func();
-    
+
     profiler.set_memory_after(get_memory_usage());
     end_profiling(profiler);
-    
+
     result
 }
 
@@ -319,11 +384,11 @@ where
 {
     let mut profiler = start_profiling(name);
     profiler.set_memory_before(get_memory_usage());
-    
+
     let result = func(&mut profiler);
-    
+
     profiler.set_memory_after(get_memory_usage());
     end_profiling(profiler);
-    
+
     result
 }

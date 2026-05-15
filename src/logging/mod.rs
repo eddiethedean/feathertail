@@ -75,7 +75,7 @@ pub fn log_memory_usage(operation: &str, memory_mb: f64) {
     if !should_log("info") {
         return;
     }
-    
+
     let config = LOGGING_CONFIG.lock().unwrap();
     if config.log_memory {
         eprintln!("💾 Memory: {} - {:.2} MB", operation, memory_mb);
@@ -88,7 +88,7 @@ pub fn log_performance(operation: &str, duration_ms: f64, rows_processed: usize)
     if !should_log("info") {
         return;
     }
-    
+
     let config = LOGGING_CONFIG.lock().unwrap();
     if config.log_performance {
         let rows_per_second = if duration_ms > 0.0 {
@@ -98,10 +98,7 @@ pub fn log_performance(operation: &str, duration_ms: f64, rows_processed: usize)
         };
         eprintln!(
             "⚡ Performance: {} - {:.2}ms, {} rows, {:.0} rows/sec",
-            operation,
-            duration_ms,
-            rows_processed,
-            rows_per_second
+            operation, duration_ms, rows_processed, rows_per_second
         );
     }
 }
@@ -121,7 +118,10 @@ pub fn log_error(operation: &str, error: &str, context: Option<&str>) {
 pub fn log_warning(operation: &str, warning: &str, context: Option<&str>) {
     if should_log("warn") {
         if let Some(ctx) = context {
-            println!("⚠️  Warning in {}: {} (Context: {})", operation, warning, ctx);
+            println!(
+                "⚠️  Warning in {}: {} (Context: {})",
+                operation, warning, ctx
+            );
         } else {
             println!("⚠️  Warning in {}: {}", operation, warning);
         }
@@ -154,10 +154,7 @@ pub fn log_dataframe_stats(operation: &str, rows: usize, cols: usize, memory_mb:
     if should_log("info") {
         println!(
             "📊 DataFrame Stats: {} - {} rows, {} cols, {:.2} MB",
-            operation,
-            rows,
-            cols,
-            memory_mb
+            operation, rows, cols, memory_mb
         );
     }
 }
@@ -189,9 +186,7 @@ pub fn log_performance_warning(operation: &str, duration_ms: f64, threshold_ms: 
     if duration_ms > threshold_ms && should_log("warn") {
         println!(
             "⚠️  Performance Warning: {} took {:.2}ms (threshold: {:.2}ms)",
-            operation,
-            duration_ms,
-            threshold_ms
+            operation, duration_ms, threshold_ms
         );
     }
 }
@@ -201,9 +196,7 @@ pub fn log_memory_warning(operation: &str, memory_mb: f64, threshold_mb: f64) {
     if memory_mb > threshold_mb && should_log("warn") {
         println!(
             "⚠️  Memory Warning: {} used {:.2}MB (threshold: {:.2}MB)",
-            operation,
-            memory_mb,
-            threshold_mb
+            operation, memory_mb, threshold_mb
         );
     }
 }

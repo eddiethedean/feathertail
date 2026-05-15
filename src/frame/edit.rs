@@ -1,16 +1,26 @@
-use pyo3::prelude::*;
-use pyo3::PyObject;
 use crate::frame::{TinyColumn, ValueEnum};
 use crate::utils::pyobject_to_option_valueenum;
+use pyo3::prelude::*;
+use pyo3::PyObject;
 
-pub fn edit_column_impl(frame: &mut crate::frame::TinyFrame, py: Python, column_name: String, func: PyObject) -> PyResult<()> {
+pub fn edit_column_impl(
+    frame: &mut crate::frame::TinyFrame,
+    py: Python,
+    column_name: String,
+    func: PyObject,
+) -> PyResult<()> {
     let col = frame.columns.get_mut(&column_name).ok_or_else(|| {
         PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column_name))
     })?;
     edit_column_logic(col, py, func, &mut frame.py_objects)
 }
 
-fn edit_column_logic(col: &mut TinyColumn, py: Python, func: PyObject, py_objects: &mut std::collections::HashMap<u64, PyObject>) -> PyResult<()> {
+fn edit_column_logic(
+    col: &mut TinyColumn,
+    py: Python,
+    func: PyObject,
+    py_objects: &mut std::collections::HashMap<u64, PyObject>,
+) -> PyResult<()> {
     let len = match col {
         TinyColumn::Int(v) => v.len(),
         TinyColumn::Float(v) => v.len(),
@@ -88,10 +98,12 @@ fn edit_column_logic(col: &mut TinyColumn, py: Python, func: PyObject, py_object
         if has_none {
             let vec: Vec<Option<u64>> = new_values
                 .into_iter()
-                .map(|opt| opt.map(|v| match v {
-                    ValueEnum::PyObjectId(id) => id,
-                    _ => unreachable!("checked all_pyobject_ids"),
-                }))
+                .map(|opt| {
+                    opt.map(|v| match v {
+                        ValueEnum::PyObjectId(id) => id,
+                        _ => unreachable!("checked all_pyobject_ids"),
+                    })
+                })
                 .collect();
             *col = TinyColumn::OptPyObject(vec);
         } else {

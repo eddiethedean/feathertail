@@ -52,9 +52,7 @@ impl ScalarOps {
         }
 
         let mean = Self::mean_f64(data);
-        let variance = data.iter()
-            .map(|x| (x - mean).powi(2))
-            .sum::<f64>();
+        let variance = data.iter().map(|x| (x - mean).powi(2)).sum::<f64>();
         variance / (data.len() - 1) as f64
     }
 

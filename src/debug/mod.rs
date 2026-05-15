@@ -63,12 +63,30 @@ impl DebugInfo {
     pub fn get_summary(&self) -> HashMap<String, String> {
         let mut summary = HashMap::new();
         summary.insert("operation".to_string(), self.operation.clone());
-        summary.insert("duration_ms".to_string(), format!("{:.2}", self.get_duration_ms()));
-        summary.insert("memory_before_mb".to_string(), format!("{:.2}", self.memory_before));
-        summary.insert("memory_after_mb".to_string(), format!("{:.2}", self.memory_after));
-        summary.insert("memory_delta_mb".to_string(), format!("{:.2}", self.get_memory_delta()));
-        summary.insert("rows_processed".to_string(), self.rows_processed.to_string());
-        summary.insert("columns_processed".to_string(), self.columns_processed.to_string());
+        summary.insert(
+            "duration_ms".to_string(),
+            format!("{:.2}", self.get_duration_ms()),
+        );
+        summary.insert(
+            "memory_before_mb".to_string(),
+            format!("{:.2}", self.memory_before),
+        );
+        summary.insert(
+            "memory_after_mb".to_string(),
+            format!("{:.2}", self.memory_after),
+        );
+        summary.insert(
+            "memory_delta_mb".to_string(),
+            format!("{:.2}", self.get_memory_delta()),
+        );
+        summary.insert(
+            "rows_processed".to_string(),
+            self.rows_processed.to_string(),
+        );
+        summary.insert(
+            "columns_processed".to_string(),
+            self.columns_processed.to_string(),
+        );
         summary.insert("error_count".to_string(), self.errors.len().to_string());
         summary.insert("warning_count".to_string(), self.warnings.len().to_string());
         summary
@@ -148,7 +166,7 @@ pub fn log_debug_info(info: &DebugInfo) {
     }
 
     let config = get_debug_config();
-    
+
     if config.log_operations {
         eprintln!("🔍 Debug Operation: {}", info.operation);
     }
@@ -156,7 +174,7 @@ pub fn log_debug_info(info: &DebugInfo) {
     if config.log_performance {
         let duration = info.get_duration_ms();
         eprintln!("⏱️  Performance: {:.2}ms", duration);
-        
+
         if duration > config.performance_threshold_ms {
             println!("⚠️  Performance Warning: Operation took longer than threshold");
         }
@@ -165,7 +183,7 @@ pub fn log_debug_info(info: &DebugInfo) {
     if config.log_memory {
         let memory_delta = info.get_memory_delta();
         println!("💾 Memory: {:.2}MB delta", memory_delta);
-        
+
         if memory_delta.abs() > config.memory_threshold_mb {
             println!("⚠️  Memory Warning: Large memory change detected");
         }
@@ -179,7 +197,10 @@ pub fn log_debug_info(info: &DebugInfo) {
         println!("⚠️  Warnings: {}", info.warnings.join(", "));
     }
 
-    println!("📊 Rows: {}, Columns: {}", info.rows_processed, info.columns_processed);
+    println!(
+        "📊 Rows: {}, Columns: {}",
+        info.rows_processed, info.columns_processed
+    );
 }
 
 /// Create a debug info for an operation
@@ -197,7 +218,10 @@ pub fn log_operation_start(operation: &str) {
 /// Log operation end
 pub fn log_operation_end(operation: &str, duration_ms: f64) {
     if is_debug_enabled() {
-        println!("✅ Completed operation: {} in {:.2}ms", operation, duration_ms);
+        println!(
+            "✅ Completed operation: {} in {:.2}ms",
+            operation, duration_ms
+        );
     }
 }
 
@@ -211,7 +235,10 @@ pub fn log_memory_usage(operation: &str, memory_mb: f64) {
 /// Log performance metrics
 pub fn log_performance_metrics(operation: &str, duration_ms: f64, rows_per_second: f64) {
     if is_debug_enabled() {
-        println!("⚡ Performance for {}: {:.2}ms, {:.0} rows/sec", operation, duration_ms, rows_per_second);
+        println!(
+            "⚡ Performance for {}: {:.2}ms, {:.0} rows/sec",
+            operation, duration_ms, rows_per_second
+        );
     }
 }
 
@@ -219,7 +246,10 @@ pub fn log_performance_metrics(operation: &str, duration_ms: f64, rows_per_secon
 pub fn log_debug_error(operation: &str, error: &str, context: Option<&str>) {
     if is_debug_enabled() {
         if let Some(ctx) = context {
-            println!("❌ Debug Error in {}: {} (Context: {})", operation, error, ctx);
+            println!(
+                "❌ Debug Error in {}: {} (Context: {})",
+                operation, error, ctx
+            );
         } else {
             println!("❌ Debug Error in {}: {}", operation, error);
         }
@@ -230,7 +260,10 @@ pub fn log_debug_error(operation: &str, error: &str, context: Option<&str>) {
 pub fn log_debug_warning(operation: &str, warning: &str, context: Option<&str>) {
     if is_debug_enabled() {
         if let Some(ctx) = context {
-            println!("⚠️  Debug Warning in {}: {} (Context: {})", operation, warning, ctx);
+            println!(
+                "⚠️  Debug Warning in {}: {} (Context: {})",
+                operation, warning, ctx
+            );
         } else {
             println!("⚠️  Debug Warning in {}: {}", operation, warning);
         }
@@ -240,14 +273,20 @@ pub fn log_debug_warning(operation: &str, warning: &str, context: Option<&str>) 
 /// Log DataFrame information
 pub fn log_dataframe_info(operation: &str, rows: usize, cols: usize, memory_mb: f64) {
     if is_debug_enabled() {
-        println!("📊 DataFrame Info for {}: {} rows, {} cols, {:.2}MB", operation, rows, cols, memory_mb);
+        println!(
+            "📊 DataFrame Info for {}: {} rows, {} cols, {:.2}MB",
+            operation, rows, cols, memory_mb
+        );
     }
 }
 
 /// Log column information
 pub fn log_column_info(operation: &str, column: &str, dtype: &str, null_count: usize) {
     if is_debug_enabled() {
-        println!("📋 Column Info for {}: {} ({}, {} nulls)", operation, column, dtype, null_count);
+        println!(
+            "📋 Column Info for {}: {} ({}, {} nulls)",
+            operation, column, dtype, null_count
+        );
     }
 }
 
@@ -278,7 +317,10 @@ pub fn log_feature_usage(feature: &str, usage_count: usize) {
 /// Log configuration changes
 pub fn log_config_change(key: &str, old_value: &str, new_value: &str) {
     if is_debug_enabled() {
-        println!("⚙️  Config Change: {} changed from '{}' to '{}'", key, old_value, new_value);
+        println!(
+            "⚙️  Config Change: {} changed from '{}' to '{}'",
+            key, old_value, new_value
+        );
     }
 }
 
@@ -287,7 +329,13 @@ pub fn log_system_info() {
     if is_debug_enabled() {
         println!("🖥️  System Info:");
         println!("  Rust version: {}", env!("CARGO_PKG_VERSION"));
-        println!("  Target: {}", std::env::var("TARGET").unwrap_or_else(|_| "unknown".to_string()));
-        println!("  Debug mode: {}", if cfg!(debug_assertions) { "Yes" } else { "No" });
+        println!(
+            "  Target: {}",
+            std::env::var("TARGET").unwrap_or_else(|_| "unknown".to_string())
+        );
+        println!(
+            "  Debug mode: {}",
+            if cfg!(debug_assertions) { "Yes" } else { "No" }
+        );
     }
 }

@@ -1,6 +1,6 @@
+use crate::column::TinyCol;
 use pyo3::prelude::*;
 use std::collections::HashMap;
-use crate::column::TinyCol;
 
 pub mod cast;
 pub mod convert;
@@ -11,11 +11,11 @@ pub mod lazy;
 pub mod optimize;
 pub mod string_optimize;
 
-mod value;
 mod column;
+mod value;
 
-pub use value::ValueEnum;
 pub use column::{TinyColumn, TinyColumnIter};
+pub use value::ValueEnum;
 
 /// TinyFrame
 ///
@@ -97,9 +97,10 @@ impl TinyFrame {
     fn drop_columns(&mut self, columns_to_drop: Vec<String>) -> PyResult<()> {
         for col_name in columns_to_drop {
             if !self.columns.contains_key(&col_name) {
-                return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-                    format!("Column '{}' not found", col_name)
-                ));
+                return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                    "Column '{}' not found",
+                    col_name
+                )));
             }
             self.columns.remove(&col_name);
         }
@@ -113,10 +114,16 @@ impl TinyFrame {
     ///     new_name (str): New column name.
     fn rename_column(&mut self, old_name: String, new_name: String) -> PyResult<()> {
         if !self.columns.contains_key(&old_name) {
-            return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", old_name)));
+            return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                "Column '{}' not found",
+                old_name
+            )));
         }
         if self.columns.contains_key(&new_name) {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Column '{}' already exists", new_name)));
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "Column '{}' already exists",
+                new_name
+            )));
         }
         let col = self.columns.remove(&old_name).unwrap();
         self.columns.insert(new_name, col);
@@ -132,38 +139,43 @@ impl TinyFrame {
     ///
     /// Returns:
     ///     TinyFrame: New frame with filtered rows.
-    fn filter(&self, py: Python, column: String, condition: String, value: &PyAny) -> PyResult<Self> {
+    fn filter(
+        &self,
+        py: Python,
+        column: String,
+        condition: String,
+        value: &PyAny,
+    ) -> PyResult<Self> {
         let col = self.columns.get(&column).ok_or_else(|| {
             PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column))
         })?;
 
         let mut filtered_indices = Vec::new();
-        
+
         for (idx, val) in col.iter().enumerate() {
             let matches = match condition.as_str() {
-                "==" => {
-                    match val {
-                        ValueEnum::Str(_) => self.compare_string_values(&val, value, py, "==")?,
-                        _ => self.compare_values(&val, value, py, |a, b| a == b)?,
-                    }
-                }
-                "!=" => {
-                    match val {
-                        ValueEnum::Str(_) => self.compare_string_values(&val, value, py, "!=")?,
-                        _ => self.compare_values(&val, value, py, |a, b| a != b)?,
-                    }
-                }
+                "==" => match val {
+                    ValueEnum::Str(_) => self.compare_string_values(&val, value, py, "==")?,
+                    _ => self.compare_values(&val, value, py, |a, b| a == b)?,
+                },
+                "!=" => match val {
+                    ValueEnum::Str(_) => self.compare_string_values(&val, value, py, "!=")?,
+                    _ => self.compare_values(&val, value, py, |a, b| a != b)?,
+                },
                 ">" => self.compare_values(&val, value, py, |a, b| a > b)?,
                 "<" => self.compare_values(&val, value, py, |a, b| a < b)?,
                 ">=" => self.compare_values(&val, value, py, |a, b| a >= b)?,
                 "<=" => self.compare_values(&val, value, py, |a, b| a <= b)?,
                 "in" => self.check_in_values(&val, value, py)?,
                 "not_in" => !self.check_in_values(&val, value, py)?,
-                _ => return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                    format!("Unknown condition: {}", condition)
-                )),
+                _ => {
+                    return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                        "Unknown condition: {}",
+                        condition
+                    )))
+                }
             };
-            
+
             if matches {
                 filtered_indices.push(idx);
             }
@@ -185,7 +197,7 @@ impl TinyFrame {
         })?;
 
         let mut filtered_indices = Vec::new();
-        
+
         for idx in 0..self.length {
             let is_not_null = match col {
                 TinyColumn::OptInt(v) => v[idx].is_some(),
@@ -196,7 +208,7 @@ impl TinyFrame {
                 TinyColumn::OptPyObject(v) => v[idx].is_some(),
                 _ => true, // Non-optional columns are never null
             };
-            
+
             if is_not_null {
                 filtered_indices.push(idx);
             }
@@ -215,23 +227,24 @@ impl TinyFrame {
     ///     TinyFrame: New frame with sorted rows.
     fn sort_values(&self, by: Vec<String>, ascending: Option<bool>) -> PyResult<Self> {
         let ascending = ascending.unwrap_or(true);
-        
+
         // Handle empty frame
         if self.length == 0 {
             return Ok(self.clone());
         }
-        
+
         // Validate all columns exist
         for col_name in &by {
             if !self.columns.contains_key(col_name) {
-                return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-                    format!("Column '{}' not found", col_name)
-                ));
+                return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                    "Column '{}' not found",
+                    col_name
+                )));
             }
         }
-        
+
         let mut indices: Vec<usize> = (0..self.length).collect();
-        
+
         // Sort by multiple columns (stable sort)
         indices.sort_by(|&a, &b| {
             for col_name in &by {
@@ -242,10 +255,10 @@ impl TinyFrame {
                         return std::cmp::Ordering::Equal;
                     }
                 };
-                
+
                 let val_a = self.get_value_at_index(col, a);
                 let val_b = self.get_value_at_index(col, b);
-                
+
                 let comparison = self.compare_for_sort(val_a, val_b);
                 if comparison != std::cmp::Ordering::Equal {
                     return if ascending {
@@ -330,7 +343,10 @@ impl TinyFrame {
 
     fn col(&self, py: Python, name: String) -> PyResult<Py<TinyCol>> {
         if !self.columns.contains_key(&name) {
-            return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", name)));
+            return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                "Column '{}' not found",
+                name
+            )));
         }
 
         let frame_clone = self.clone();
@@ -352,7 +368,12 @@ impl TinyFrame {
     ///
     /// Returns:
     ///     TinyFrame: The result of the inner join
-    pub fn inner_join(&self, other: &TinyFrame, left_on: Vec<String>, right_on: Vec<String>) -> PyResult<Self> {
+    pub fn inner_join(
+        &self,
+        other: &TinyFrame,
+        left_on: Vec<String>,
+        right_on: Vec<String>,
+    ) -> PyResult<Self> {
         crate::joins::JoinOps::inner_join(self, other, left_on, right_on)
     }
 
@@ -365,7 +386,12 @@ impl TinyFrame {
     ///
     /// Returns:
     ///     TinyFrame: The result of the left join
-    pub fn left_join(&self, other: &TinyFrame, left_on: Vec<String>, right_on: Vec<String>) -> PyResult<Self> {
+    pub fn left_join(
+        &self,
+        other: &TinyFrame,
+        left_on: Vec<String>,
+        right_on: Vec<String>,
+    ) -> PyResult<Self> {
         crate::joins::JoinOps::left_join(self, other, left_on, right_on)
     }
 
@@ -378,7 +404,12 @@ impl TinyFrame {
     ///
     /// Returns:
     ///     TinyFrame: The result of the right join
-    pub fn right_join(&self, other: &TinyFrame, left_on: Vec<String>, right_on: Vec<String>) -> PyResult<Self> {
+    pub fn right_join(
+        &self,
+        other: &TinyFrame,
+        left_on: Vec<String>,
+        right_on: Vec<String>,
+    ) -> PyResult<Self> {
         crate::joins::JoinOps::right_join(self, other, left_on, right_on)
     }
 
@@ -391,7 +422,12 @@ impl TinyFrame {
     ///
     /// Returns:
     ///     TinyFrame: The result of the outer join
-    pub fn outer_join(&self, other: &TinyFrame, left_on: Vec<String>, right_on: Vec<String>) -> PyResult<Self> {
+    pub fn outer_join(
+        &self,
+        other: &TinyFrame,
+        left_on: Vec<String>,
+        right_on: Vec<String>,
+    ) -> PyResult<Self> {
         crate::joins::JoinOps::outer_join(self, other, left_on, right_on)
     }
 
@@ -710,9 +746,11 @@ impl TinyFrame {
             "max" => crate::ranking::RankMethod::Max,
             "first" => crate::ranking::RankMethod::First,
             "dense" => crate::ranking::RankMethod::Dense,
-            _ => return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Invalid ranking method. Must be one of: average, min, max, first, dense"
-            )),
+            _ => {
+                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                    "Invalid ranking method. Must be one of: average, min, max, first, dense",
+                ))
+            }
         };
         crate::ranking::RankingOps::rank_impl(self, &column, rank_method)
     }
@@ -841,7 +879,12 @@ impl TinyFrame {
     ///
     /// Returns:
     ///     TinyFrame: New frame with boolean column indicating validation results
-    pub fn validate_range(&self, column: String, min: Option<f64>, max: Option<f64>) -> PyResult<Self> {
+    pub fn validate_range(
+        &self,
+        column: String,
+        min: Option<f64>,
+        max: Option<f64>,
+    ) -> PyResult<Self> {
         crate::validation::ValidationOps::validate_range_impl(self, &column, min, max)
     }
 
@@ -878,7 +921,6 @@ impl TinyFrame {
     pub fn validation_summary(&self, column: String) -> PyResult<HashMap<String, f64>> {
         crate::validation::ValidationOps::validation_summary_impl(self, &column)
     }
-
 }
 
 impl TinyFrame {
@@ -897,7 +939,13 @@ impl TinyFrame {
         })
     }
 
-    fn compare_values(&self, val: &ValueEnum, py_value: &PyAny, _py: Python, compare_fn: fn(f64, f64) -> bool) -> PyResult<bool> {
+    fn compare_values(
+        &self,
+        val: &ValueEnum,
+        py_value: &PyAny,
+        _py: Python,
+        compare_fn: fn(f64, f64) -> bool,
+    ) -> PyResult<bool> {
         match val {
             ValueEnum::Int(v) => {
                 let py_f64 = py_value.extract::<f64>()?;
@@ -913,7 +961,13 @@ impl TinyFrame {
         }
     }
 
-    fn compare_string_values(&self, val: &ValueEnum, py_value: &PyAny, _py: Python, condition: &str) -> PyResult<bool> {
+    fn compare_string_values(
+        &self,
+        val: &ValueEnum,
+        py_value: &PyAny,
+        _py: Python,
+        condition: &str,
+    ) -> PyResult<bool> {
         match val {
             ValueEnum::Str(s) => {
                 let py_str: String = py_value.extract()?;

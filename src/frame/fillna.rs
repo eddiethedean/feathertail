@@ -1,14 +1,17 @@
+use crate::frame::{TinyColumn, TinyFrame, ValueEnum};
 use pyo3::prelude::*;
-use crate::frame::{TinyFrame, TinyColumn, ValueEnum};
 
-pub fn fillna_impl(frame: &mut TinyFrame, py: Python, value: &PyAny) -> PyResult<()> {
+pub fn fillna_impl(frame: &mut TinyFrame, _py: Python, value: &PyAny) -> PyResult<()> {
     let is_dict = value.is_instance_of::<pyo3::types::PyDict>();
     if is_dict {
         let dict = value.downcast::<pyo3::types::PyDict>()?;
         for (col_name_py, val_obj) in dict {
             let col_name: String = col_name_py.extract()?;
             let col = frame.columns.get_mut(&col_name).ok_or_else(|| {
-                PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", col_name))
+                PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                    "Column '{}' not found",
+                    col_name
+                ))
             })?;
             fill_column(col, val_obj)?;
             convert_if_fully_filled(col);

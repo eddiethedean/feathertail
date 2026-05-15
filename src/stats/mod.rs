@@ -1,15 +1,15 @@
-pub mod descriptive;
 pub mod correlation;
+pub mod descriptive;
 
-use pyo3::prelude::*;
-use crate::frame::{TinyFrame, TinyColumn};
+use crate::frame::{TinyColumn, TinyFrame};
 use crate::utils::total_cmp_f64;
+use pyo3::prelude::*;
 use std::collections::HashMap;
 
 /// Generate descriptive statistics for numeric columns
 pub fn describe_impl(frame: &TinyFrame) -> PyResult<TinyFrame> {
     let mut stats = HashMap::new();
-    
+
     for (col_name, col_data) in &frame.columns {
         if let Some(column_stats) = calculate_column_stats(col_data)? {
             stats.insert(col_name.clone(), column_stats);
@@ -26,12 +26,12 @@ pub fn corr_impl(frame: &TinyFrame) -> PyResult<TinyFrame> {
 
     for (col1_name, col1_data) in &numeric_columns {
         let mut col1_corr: HashMap<String, f64> = HashMap::new();
-        
+
         for (col2_name, col2_data) in &numeric_columns {
             let correlation = calculate_correlation(frame, col1_data, col2_data)?;
             col1_corr.insert(col2_name.clone(), correlation);
         }
-        
+
         corr_matrix.insert(col1_name.clone(), col1_corr);
     }
 
@@ -45,12 +45,12 @@ pub fn cov_impl(frame: &TinyFrame) -> PyResult<TinyFrame> {
 
     for (col1_name, col1_data) in &numeric_columns {
         let mut col1_cov: HashMap<String, f64> = HashMap::new();
-        
+
         for (col2_name, col2_data) in &numeric_columns {
             let covariance = calculate_covariance(frame, col1_data, col2_data)?;
             col1_cov.insert(col2_name.clone(), covariance);
         }
-        
+
         cov_matrix.insert(col1_name.clone(), col1_cov);
     }
 
@@ -59,30 +59,26 @@ pub fn cov_impl(frame: &TinyFrame) -> PyResult<TinyFrame> {
 
 /// Calculate correlation between two specific columns
 pub fn corr_with_impl(frame: &TinyFrame, column1: &str, column2: &str) -> PyResult<f64> {
-    let col1 = frame.columns.get(column1)
-        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-            format!("Column '{}' not found", column1)
-        ))?;
-    
-    let col2 = frame.columns.get(column2)
-        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-            format!("Column '{}' not found", column2)
-        ))?;
+    let col1 = frame.columns.get(column1).ok_or_else(|| {
+        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column1))
+    })?;
+
+    let col2 = frame.columns.get(column2).ok_or_else(|| {
+        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column2))
+    })?;
 
     calculate_correlation(frame, col1, col2)
 }
 
 /// Calculate covariance between two specific columns
 pub fn cov_with_impl(frame: &TinyFrame, column1: &str, column2: &str) -> PyResult<f64> {
-    let col1 = frame.columns.get(column1)
-        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-            format!("Column '{}' not found", column1)
-        ))?;
-    
-    let col2 = frame.columns.get(column2)
-        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-            format!("Column '{}' not found", column2)
-        ))?;
+    let col1 = frame.columns.get(column1).ok_or_else(|| {
+        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column1))
+    })?;
+
+    let col2 = frame.columns.get(column2).ok_or_else(|| {
+        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column2))
+    })?;
 
     calculate_covariance(frame, col1, col2)
 }
@@ -124,11 +120,18 @@ fn calculate_column_stats(col: &TinyColumn) -> PyResult<Option<ColumnStats>> {
 
 fn build_stats_frame(stats: HashMap<String, ColumnStats>) -> PyResult<TinyFrame> {
     let mut columns: HashMap<String, TinyColumn> = HashMap::new();
-    
+
     // Add statistic names
-    let stat_names = vec!["count".to_string(), "mean".to_string(), "std".to_string(), 
-                         "min".to_string(), "25%".to_string(), "50%".to_string(), 
-                         "75%".to_string(), "max".to_string()];
+    let stat_names = vec![
+        "count".to_string(),
+        "mean".to_string(),
+        "std".to_string(),
+        "min".to_string(),
+        "25%".to_string(),
+        "50%".to_string(),
+        "75%".to_string(),
+        "max".to_string(),
+    ];
     columns.insert("statistic".to_string(), TinyColumn::Str(stat_names));
 
     // Add statistics for each column
@@ -156,17 +159,19 @@ fn build_stats_frame(stats: HashMap<String, ColumnStats>) -> PyResult<TinyFrame>
 /// Get numeric columns for statistical operations
 fn get_numeric_columns(frame: &TinyFrame) -> PyResult<HashMap<String, &TinyColumn>> {
     let mut numeric_columns = HashMap::new();
-    
+
     for (col_name, col_data) in &frame.columns {
         match col_data {
-            TinyColumn::Int(_) | TinyColumn::Float(_) | 
-            TinyColumn::OptInt(_) | TinyColumn::OptFloat(_) => {
+            TinyColumn::Int(_)
+            | TinyColumn::Float(_)
+            | TinyColumn::OptInt(_)
+            | TinyColumn::OptFloat(_) => {
                 numeric_columns.insert(col_name.clone(), col_data);
             }
             _ => {} // Skip non-numeric columns
         }
     }
-    
+
     Ok(numeric_columns)
 }
 
@@ -177,9 +182,11 @@ fn extract_numeric_values(col1: &TinyColumn, col2: &TinyColumn) -> PyResult<(Vec
         TinyColumn::Float(v) => v.clone(),
         TinyColumn::OptInt(v) => v.iter().filter_map(|&x| x.map(|v| v as f64)).collect(),
         TinyColumn::OptFloat(v) => v.iter().filter_map(|&x| x).collect(),
-        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-            "Correlation only supported on numeric columns"
-        )),
+        _ => {
+            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Correlation only supported on numeric columns",
+            ))
+        }
     };
 
     let values2 = match col2 {
@@ -187,20 +194,26 @@ fn extract_numeric_values(col1: &TinyColumn, col2: &TinyColumn) -> PyResult<(Vec
         TinyColumn::Float(v) => v.clone(),
         TinyColumn::OptInt(v) => v.iter().filter_map(|&x| x.map(|v| v as f64)).collect(),
         TinyColumn::OptFloat(v) => v.iter().filter_map(|&x| x).collect(),
-        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-            "Correlation only supported on numeric columns"
-        )),
+        _ => {
+            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Correlation only supported on numeric columns",
+            ))
+        }
     };
 
     Ok((values1, values2))
 }
 
-fn calculate_correlation(_frame: &TinyFrame, col1: &TinyColumn, col2: &TinyColumn) -> PyResult<f64> {
+fn calculate_correlation(
+    _frame: &TinyFrame,
+    col1: &TinyColumn,
+    col2: &TinyColumn,
+) -> PyResult<f64> {
     let (values1, values2) = extract_numeric_values(col1, col2)?;
-    
+
     if values1.len() != values2.len() {
         return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            "Columns must have the same length"
+            "Columns must have the same length",
         ));
     }
 
@@ -212,20 +225,17 @@ fn calculate_correlation(_frame: &TinyFrame, col1: &TinyColumn, col2: &TinyColum
     let mean1 = values1.iter().sum::<f64>() / n;
     let mean2 = values2.iter().sum::<f64>() / n;
 
-    let numerator: f64 = values1.iter()
+    let numerator: f64 = values1
+        .iter()
         .zip(values2.iter())
         .map(|(x, y)| (x - mean1) * (y - mean2))
         .sum();
 
-    let sum_sq1: f64 = values1.iter()
-        .map(|x| (x - mean1).powi(2))
-        .sum();
-    let sum_sq2: f64 = values2.iter()
-        .map(|y| (y - mean2).powi(2))
-        .sum();
+    let sum_sq1: f64 = values1.iter().map(|x| (x - mean1).powi(2)).sum();
+    let sum_sq2: f64 = values2.iter().map(|y| (y - mean2).powi(2)).sum();
 
     let denominator = (sum_sq1 * sum_sq2).sqrt();
-    
+
     if denominator == 0.0 {
         Ok(0.0)
     } else {
@@ -235,10 +245,10 @@ fn calculate_correlation(_frame: &TinyFrame, col1: &TinyColumn, col2: &TinyColum
 
 fn calculate_covariance(_frame: &TinyFrame, col1: &TinyColumn, col2: &TinyColumn) -> PyResult<f64> {
     let (values1, values2) = extract_numeric_values(col1, col2)?;
-    
+
     if values1.len() != values2.len() {
         return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            "Columns must have the same length"
+            "Columns must have the same length",
         ));
     }
 
@@ -250,7 +260,8 @@ fn calculate_covariance(_frame: &TinyFrame, col1: &TinyColumn, col2: &TinyColumn
     let mean1 = values1.iter().sum::<f64>() / n;
     let mean2 = values2.iter().sum::<f64>() / n;
 
-    let covariance: f64 = values1.iter()
+    let covariance: f64 = values1
+        .iter()
         .zip(values2.iter())
         .map(|(x, y)| (x - mean1) * (y - mean2))
         .sum();
@@ -258,11 +269,13 @@ fn calculate_covariance(_frame: &TinyFrame, col1: &TinyColumn, col2: &TinyColumn
     Ok(covariance / n)
 }
 
-fn build_correlation_frame(matrix: HashMap<String, HashMap<String, f64>>, 
-                          numeric_columns: &HashMap<String, &TinyColumn>) -> PyResult<TinyFrame> {
+fn build_correlation_frame(
+    matrix: HashMap<String, HashMap<String, f64>>,
+    numeric_columns: &HashMap<String, &TinyColumn>,
+) -> PyResult<TinyFrame> {
     let mut columns: HashMap<String, TinyColumn> = HashMap::new();
     let column_names: Vec<String> = numeric_columns.keys().cloned().collect();
-    
+
     // Add column names as the first column
     columns.insert("column".to_string(), TinyColumn::Str(column_names.clone()));
 
@@ -313,16 +326,12 @@ impl ColumnStats {
     }
 
     fn from_opt_int_column(data: &[Option<i64>]) -> Self {
-        let values: Vec<f64> = data.iter()
-            .filter_map(|&x| x.map(|v| v as f64))
-            .collect();
+        let values: Vec<f64> = data.iter().filter_map(|&x| x.map(|v| v as f64)).collect();
         Self::from_float_values(&values)
     }
 
     fn from_opt_float_column(data: &[Option<f64>]) -> Self {
-        let values: Vec<f64> = data.iter()
-            .filter_map(|&x| x)
-            .collect();
+        let values: Vec<f64> = data.iter().filter_map(|&x| x).collect();
         Self::from_float_values(&values)
     }
 
@@ -342,9 +351,7 @@ impl ColumnStats {
 
         let count = values.len();
         let mean = values.iter().sum::<f64>() / count as f64;
-        let variance = values.iter()
-            .map(|&x| (x - mean).powi(2))
-            .sum::<f64>() / count as f64;
+        let variance = values.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / count as f64;
         let std = variance.sqrt();
 
         let mut sorted_values = values.to_vec();

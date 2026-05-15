@@ -1,8 +1,8 @@
 //! Column-name validation for join operators (SRP: keep policy out of join assembly).
 
-use std::collections::HashSet;
-use pyo3::prelude::*;
 use crate::frame::TinyFrame;
+use pyo3::prelude::*;
+use std::collections::HashSet;
 
 /// Enforce distinct output identifiers: keyed joins build a [`std::collections::HashMap`] of columns.
 pub fn keyed_join_output_columns(

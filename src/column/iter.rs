@@ -1,6 +1,6 @@
-use pyo3::prelude::*;
-use crate::frame::{TinyFrame, TinyColumn as FrameColumn, ValueEnum};
 use super::TinyCol;
+use crate::frame::{TinyColumn as FrameColumn, TinyFrame};
+use pyo3::prelude::*;
 
 #[pyclass]
 pub struct TinyColIter {
@@ -49,7 +49,11 @@ impl TinyColIter {
                     .map_or(py.None(), |x| x.to_py(py, &frame.py_objects)),
                 FrameColumn::PyObject(v) => {
                     let id = v[slf.index];
-                    frame.py_objects.get(&id).cloned().unwrap_or_else(|| py.None())
+                    frame
+                        .py_objects
+                        .get(&id)
+                        .cloned()
+                        .unwrap_or_else(|| py.None())
                 }
                 FrameColumn::OptPyObject(v) => v[slf.index]
                     .and_then(|id| frame.py_objects.get(&id).cloned())

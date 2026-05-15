@@ -138,12 +138,24 @@ impl X86_64SimdOps {
             _mm256_storeu_pd(min_result.as_mut_ptr(), min_val);
             _mm256_storeu_pd(max_result.as_mut_ptr(), max_val);
 
-            let simd_min = min_result.iter().min_by(|a, b| total_cmp_f64(a, b)).unwrap();
-            let simd_max = max_result.iter().max_by(|a, b| total_cmp_f64(a, b)).unwrap();
+            let simd_min = min_result
+                .iter()
+                .min_by(|a, b| total_cmp_f64(a, b))
+                .unwrap();
+            let simd_max = max_result
+                .iter()
+                .max_by(|a, b| total_cmp_f64(a, b))
+                .unwrap();
 
             // Check remainder
-            let remainder_min = remainder.iter().min_by(|a, b| total_cmp_f64(a, b)).unwrap_or(&simd_min);
-            let remainder_max = remainder.iter().max_by(|a, b| total_cmp_f64(a, b)).unwrap_or(&simd_max);
+            let remainder_min = remainder
+                .iter()
+                .min_by(|a, b| total_cmp_f64(a, b))
+                .unwrap_or(&simd_min);
+            let remainder_max = remainder
+                .iter()
+                .max_by(|a, b| total_cmp_f64(a, b))
+                .unwrap_or(&simd_max);
 
             (simd_min.min(remainder_min), simd_max.max(remainder_max))
         }
@@ -156,7 +168,12 @@ impl X86_64SimdOps {
         }
 
         let mean = Self::mean_f64(data);
-        let variance = Self::sum_f64(&data.iter().map(|x| (x - mean).powi(2)).collect::<Vec<f64>>());
+        let variance = Self::sum_f64(
+            &data
+                .iter()
+                .map(|x| (x - mean).powi(2))
+                .collect::<Vec<f64>>(),
+        );
         variance / (data.len() - 1) as f64
     }
 
@@ -189,7 +206,8 @@ impl X86_64SimdOps {
             let simd_sum = result[0] + result[1] + result[2] + result[3];
 
             // Add remainder
-            let remainder_sum: f64 = remainder.iter()
+            let remainder_sum: f64 = remainder
+                .iter()
                 .zip(b.chunks_exact(4).remainder().iter())
                 .map(|(x, y)| x * y)
                 .sum();
@@ -346,17 +364,20 @@ impl X86_64StringOps {
         let needle_len = needle_bytes.len();
 
         if needle_len < 16 {
-            return haystack_bytes.windows(needle_len).any(|window| window == needle_bytes);
+            return haystack_bytes
+                .windows(needle_len)
+                .any(|window| window == needle_bytes);
         }
 
         unsafe {
             let needle_simd = _mm_loadu_si128(needle_bytes.as_ptr() as *const __m128i);
-            
+
             for i in 0..=haystack_bytes.len() - needle_len {
-                let haystack_simd = _mm_loadu_si128(haystack_bytes.as_ptr().add(i) as *const __m128i);
+                let haystack_simd =
+                    _mm_loadu_si128(haystack_bytes.as_ptr().add(i) as *const __m128i);
                 let cmp = _mm_cmpeq_epi8(needle_simd, haystack_simd);
                 let mask = _mm_movemask_epi8(cmp);
-                
+
                 if mask == 0xFFFF {
                     return true;
                 }

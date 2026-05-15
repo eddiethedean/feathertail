@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-use pyo3::prelude::*;
-use crate::frame::{TinyFrame, TinyColumn, ValueEnum};
+use crate::frame::{TinyColumn, TinyFrame, ValueEnum};
 use crate::parallel::{GroupKeyRow, ParallelOps};
+use pyo3::prelude::*;
+use std::collections::HashMap;
 
 // Chunked processing for large datasets
 pub struct ChunkedProcessor {
@@ -14,11 +14,7 @@ impl ChunkedProcessor {
     }
 
     // Process large dataset in chunks
-    pub fn process_large_dataset<F>(
-        &self,
-        frame: &TinyFrame,
-        processor: F,
-    ) -> PyResult<TinyFrame>
+    pub fn process_large_dataset<F>(&self, frame: &TinyFrame, processor: F) -> PyResult<TinyFrame>
     where
         F: Fn(&TinyFrame) -> PyResult<TinyFrame> + Send + Sync,
     {
@@ -32,7 +28,7 @@ impl ChunkedProcessor {
         for chunk_idx in 0..num_chunks {
             let start = chunk_idx * self.chunk_size;
             let end = std::cmp::min(start + self.chunk_size, frame.length);
-            
+
             let chunk = self.create_chunk(frame, start, end)?;
             let processed_chunk = processor(&chunk)?;
             results.push(processed_chunk);
@@ -59,9 +55,13 @@ impl ChunkedProcessor {
         for chunk_idx in 0..num_chunks {
             let start = chunk_idx * self.chunk_size;
             let end = std::cmp::min(start + self.chunk_size, frame.length);
-            
+
             let chunk = self.create_chunk(frame, start, end)?;
-            let chunk_result = ParallelOps::parallel_groupby_sum(&chunk, group_keys.clone(), value_column.clone())?;
+            let chunk_result = ParallelOps::parallel_groupby_sum(
+                &chunk,
+                group_keys.clone(),
+                value_column.clone(),
+            )?;
             chunk_results.push(chunk_result);
         }
 
@@ -87,10 +87,11 @@ impl ChunkedProcessor {
         for chunk_idx in 0..num_chunks {
             let start = chunk_idx * self.chunk_size;
             let end = std::cmp::min(start + self.chunk_size, frame.length);
-            
+
             let chunk = self.create_chunk(frame, start, end)?;
-            let filtered_chunk = ParallelOps::parallel_filter(&chunk, column.clone(), condition.clone(), value)?;
-            
+            let filtered_chunk =
+                ParallelOps::parallel_filter(&chunk, column.clone(), condition.clone(), value)?;
+
             if filtered_chunk.length > 0 {
                 results.push(filtered_chunk);
             }
@@ -121,7 +122,7 @@ impl ChunkedProcessor {
         for chunk_idx in 0..num_chunks {
             let start = chunk_idx * self.chunk_size;
             let end = std::cmp::min(start + self.chunk_size, frame.length);
-            
+
             let chunk = self.create_chunk(frame, start, end)?;
             let sorted_chunk = ParallelOps::parallel_sort(&chunk, by.clone(), ascending)?;
             sorted_chunks.push(sorted_chunk);
@@ -150,12 +151,15 @@ impl ChunkedProcessor {
         for chunk_idx in 0..num_chunks {
             let start = chunk_idx * self.chunk_size;
             let end = std::cmp::min(start + self.chunk_size, frame.length);
-            
+
             let chunk = self.create_chunk(frame, start, end)?;
-            
+
             for i in 0..chunk.length {
                 let key = ParallelOps::build_group_key_row(&chunk, &group_keys, i);
-                global_groups.entry(key).or_insert_with(Vec::new).push(start + i);
+                global_groups
+                    .entry(key)
+                    .or_insert_with(Vec::new)
+                    .push(start + i);
             }
         }
 
@@ -222,10 +226,12 @@ impl ChunkedProcessor {
 
     fn merge_column(&self, chunks: &[TinyFrame], col_name: &str) -> PyResult<TinyColumn> {
         let first_chunk = &chunks[0];
-        let first_col = first_chunk.columns.get(col_name)
-            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-                format!("Column '{}' not found", col_name)
-            ))?;
+        let first_col = first_chunk.columns.get(col_name).ok_or_else(|| {
+            PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                "Column '{}' not found",
+                col_name
+            ))
+        })?;
 
         match first_col {
             TinyColumn::Int(_) => {
@@ -239,14 +245,16 @@ impl ChunkedProcessor {
                     })?;
                     match col {
                         TinyColumn::Int(v) => merged.extend_from_slice(v),
-                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                            "Column '{}' has inconsistent type across chunks",
-                            col_name
-                        ))),
+                        _ => {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                                "Column '{}' has inconsistent type across chunks",
+                                col_name
+                            )))
+                        }
                     }
                 }
                 Ok(TinyColumn::Int(merged))
-            },
+            }
             TinyColumn::Float(_) => {
                 let mut merged: Vec<f64> = Vec::new();
                 for chunk in chunks {
@@ -258,14 +266,16 @@ impl ChunkedProcessor {
                     })?;
                     match col {
                         TinyColumn::Float(v) => merged.extend_from_slice(v),
-                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                            "Column '{}' has inconsistent type across chunks",
-                            col_name
-                        ))),
+                        _ => {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                                "Column '{}' has inconsistent type across chunks",
+                                col_name
+                            )))
+                        }
                     }
                 }
                 Ok(TinyColumn::Float(merged))
-            },
+            }
             TinyColumn::Str(_) => {
                 let mut merged: Vec<String> = Vec::new();
                 for chunk in chunks {
@@ -277,14 +287,16 @@ impl ChunkedProcessor {
                     })?;
                     match col {
                         TinyColumn::Str(v) => merged.extend(v.iter().cloned()),
-                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                            "Column '{}' has inconsistent type across chunks",
-                            col_name
-                        ))),
+                        _ => {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                                "Column '{}' has inconsistent type across chunks",
+                                col_name
+                            )))
+                        }
                     }
                 }
                 Ok(TinyColumn::Str(merged))
-            },
+            }
             TinyColumn::Bool(_) => {
                 let mut merged: Vec<bool> = Vec::new();
                 for chunk in chunks {
@@ -296,14 +308,16 @@ impl ChunkedProcessor {
                     })?;
                     match col {
                         TinyColumn::Bool(v) => merged.extend_from_slice(v),
-                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                            "Column '{}' has inconsistent type across chunks",
-                            col_name
-                        ))),
+                        _ => {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                                "Column '{}' has inconsistent type across chunks",
+                                col_name
+                            )))
+                        }
                     }
                 }
                 Ok(TinyColumn::Bool(merged))
-            },
+            }
             TinyColumn::OptInt(_) => {
                 let mut merged = Vec::new();
                 for chunk in chunks {
@@ -315,14 +329,16 @@ impl ChunkedProcessor {
                     })?;
                     match col {
                         TinyColumn::OptInt(v) => merged.extend_from_slice(v),
-                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                            "Column '{}' has inconsistent type across chunks",
-                            col_name
-                        ))),
+                        _ => {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                                "Column '{}' has inconsistent type across chunks",
+                                col_name
+                            )))
+                        }
                     }
                 }
                 Ok(TinyColumn::OptInt(merged))
-            },
+            }
             TinyColumn::OptFloat(_) => {
                 let mut merged = Vec::new();
                 for chunk in chunks {
@@ -334,14 +350,16 @@ impl ChunkedProcessor {
                     })?;
                     match col {
                         TinyColumn::OptFloat(v) => merged.extend_from_slice(v),
-                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                            "Column '{}' has inconsistent type across chunks",
-                            col_name
-                        ))),
+                        _ => {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                                "Column '{}' has inconsistent type across chunks",
+                                col_name
+                            )))
+                        }
                     }
                 }
                 Ok(TinyColumn::OptFloat(merged))
-            },
+            }
             TinyColumn::OptStr(_) => {
                 let mut merged = Vec::new();
                 for chunk in chunks {
@@ -353,14 +371,16 @@ impl ChunkedProcessor {
                     })?;
                     match col {
                         TinyColumn::OptStr(v) => merged.extend(v.iter().cloned()),
-                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                            "Column '{}' has inconsistent type across chunks",
-                            col_name
-                        ))),
+                        _ => {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                                "Column '{}' has inconsistent type across chunks",
+                                col_name
+                            )))
+                        }
                     }
                 }
                 Ok(TinyColumn::OptStr(merged))
-            },
+            }
             TinyColumn::OptBool(_) => {
                 let mut merged = Vec::new();
                 for chunk in chunks {
@@ -372,14 +392,16 @@ impl ChunkedProcessor {
                     })?;
                     match col {
                         TinyColumn::OptBool(v) => merged.extend_from_slice(v),
-                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                            "Column '{}' has inconsistent type across chunks",
-                            col_name
-                        ))),
+                        _ => {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                                "Column '{}' has inconsistent type across chunks",
+                                col_name
+                            )))
+                        }
                     }
                 }
                 Ok(TinyColumn::OptBool(merged))
-            },
+            }
             TinyColumn::PyObject(_) => {
                 let mut merged = Vec::new();
                 for chunk in chunks {
@@ -391,14 +413,16 @@ impl ChunkedProcessor {
                     })?;
                     match col {
                         TinyColumn::PyObject(v) => merged.extend_from_slice(v),
-                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                            "Column '{}' has inconsistent type across chunks",
-                            col_name
-                        ))),
+                        _ => {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                                "Column '{}' has inconsistent type across chunks",
+                                col_name
+                            )))
+                        }
                     }
                 }
                 Ok(TinyColumn::PyObject(merged))
-            },
+            }
             TinyColumn::OptPyObject(_) => {
                 let mut merged = Vec::new();
                 for chunk in chunks {
@@ -410,14 +434,16 @@ impl ChunkedProcessor {
                     })?;
                     match col {
                         TinyColumn::OptPyObject(v) => merged.extend_from_slice(v),
-                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                            "Column '{}' has inconsistent type across chunks",
-                            col_name
-                        ))),
+                        _ => {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                                "Column '{}' has inconsistent type across chunks",
+                                col_name
+                            )))
+                        }
                     }
                 }
                 Ok(TinyColumn::OptPyObject(merged))
-            },
+            }
             TinyColumn::Mixed(_) => {
                 let mut merged = Vec::new();
                 for chunk in chunks {
@@ -429,14 +455,16 @@ impl ChunkedProcessor {
                     })?;
                     match col {
                         TinyColumn::Mixed(v) => merged.extend(v.iter().cloned()),
-                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                            "Column '{}' has inconsistent type across chunks",
-                            col_name
-                        ))),
+                        _ => {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                                "Column '{}' has inconsistent type across chunks",
+                                col_name
+                            )))
+                        }
                     }
                 }
                 Ok(TinyColumn::Mixed(merged))
-            },
+            }
             TinyColumn::OptMixed(_) => {
                 let mut merged = Vec::new();
                 for chunk in chunks {
@@ -448,14 +476,16 @@ impl ChunkedProcessor {
                     })?;
                     match col {
                         TinyColumn::OptMixed(v) => merged.extend(v.iter().cloned()),
-                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                            "Column '{}' has inconsistent type across chunks",
-                            col_name
-                        ))),
+                        _ => {
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                                "Column '{}' has inconsistent type across chunks",
+                                col_name
+                            )))
+                        }
                     }
                 }
                 Ok(TinyColumn::OptMixed(merged))
-            },
+            }
         }
     }
 
@@ -560,24 +590,32 @@ impl StreamingProcessor {
 
     pub fn estimate_memory_usage(frame: &TinyFrame) -> usize {
         let mut total_bytes = 0;
-        
+
         for col in frame.columns.values() {
             total_bytes += match col {
                 TinyColumn::Int(v) => v.len() * std::mem::size_of::<i64>(),
                 TinyColumn::Float(v) => v.len() * std::mem::size_of::<f64>(),
-                TinyColumn::Str(v) => v.iter().map(|s| s.len()).sum::<usize>() + v.len() * std::mem::size_of::<String>(),
+                TinyColumn::Str(v) => {
+                    v.iter().map(|s| s.len()).sum::<usize>()
+                        + v.len() * std::mem::size_of::<String>()
+                }
                 TinyColumn::Bool(v) => v.len() * std::mem::size_of::<bool>(),
                 TinyColumn::PyObject(v) => v.len() * std::mem::size_of::<u64>(),
                 TinyColumn::Mixed(v) => v.len() * std::mem::size_of::<Option<ValueEnum>>(),
                 TinyColumn::OptInt(v) => v.len() * std::mem::size_of::<Option<i64>>(),
                 TinyColumn::OptFloat(v) => v.len() * std::mem::size_of::<Option<f64>>(),
-                TinyColumn::OptStr(v) => v.iter().map(|s| s.as_ref().map(|s| s.len()).unwrap_or(0)).sum::<usize>() + v.len() * std::mem::size_of::<Option<String>>(),
+                TinyColumn::OptStr(v) => {
+                    v.iter()
+                        .map(|s| s.as_ref().map(|s| s.len()).unwrap_or(0))
+                        .sum::<usize>()
+                        + v.len() * std::mem::size_of::<Option<String>>()
+                }
                 TinyColumn::OptBool(v) => v.len() * std::mem::size_of::<Option<bool>>(),
                 TinyColumn::OptPyObject(v) => v.len() * std::mem::size_of::<Option<u64>>(),
                 TinyColumn::OptMixed(v) => v.len() * std::mem::size_of::<Option<ValueEnum>>(),
             };
         }
-        
+
         total_bytes
     }
 
@@ -589,7 +627,7 @@ impl StreamingProcessor {
     pub fn get_optimal_chunk_size(&self, frame: &TinyFrame) -> usize {
         let memory_usage = Self::estimate_memory_usage(frame);
         let target_chunk_memory = self.max_memory_mb * 1024 * 1024;
-        
+
         if memory_usage <= target_chunk_memory {
             frame.length
         } else {

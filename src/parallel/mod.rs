@@ -1,7 +1,7 @@
+use crate::frame::{TinyColumn, TinyFrame, ValueEnum};
+use pyo3::prelude::*;
 use rayon::prelude::*;
 use std::collections::HashMap;
-use pyo3::prelude::*;
-use crate::frame::{TinyFrame, TinyColumn, ValueEnum};
 
 // Parallel processing operations for TinyFrame
 pub struct ParallelOps;
@@ -10,7 +10,11 @@ pub struct ParallelOps;
 pub(crate) type GroupKeyRow = Vec<Option<ValueEnum>>;
 
 impl ParallelOps {
-    pub(crate) fn build_group_key_row(frame: &TinyFrame, group_keys: &[String], row_idx: usize) -> GroupKeyRow {
+    pub(crate) fn build_group_key_row(
+        frame: &TinyFrame,
+        group_keys: &[String],
+        row_idx: usize,
+    ) -> GroupKeyRow {
         group_keys
             .iter()
             .map(|col_name| {
@@ -22,7 +26,10 @@ impl ParallelOps {
             .collect()
     }
 
-    pub(crate) fn validate_group_key_columns(frame: &TinyFrame, group_keys: &[String]) -> PyResult<()> {
+    pub(crate) fn validate_group_key_columns(
+        frame: &TinyFrame,
+        group_keys: &[String],
+    ) -> PyResult<()> {
         for col_name in group_keys {
             if !frame.columns.contains_key(col_name) {
                 return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
@@ -42,17 +49,19 @@ impl ParallelOps {
     ) -> PyResult<TinyFrame> {
         if group_keys.is_empty() {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Group keys cannot be empty"
+                "Group keys cannot be empty",
             ));
         }
 
         Self::validate_group_key_columns(frame, &group_keys)?;
 
         // Get the value column
-        let value_col = frame.columns.get(&value_column)
-            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-                format!("Column '{}' not found", value_column)
-            ))?;
+        let value_col = frame.columns.get(&value_column).ok_or_else(|| {
+            PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                "Column '{}' not found",
+                value_column
+            ))
+        })?;
 
         // Create groups in parallel
         let groups: HashMap<GroupKeyRow, Vec<usize>> = (0..frame.length)
@@ -93,16 +102,18 @@ impl ParallelOps {
     ) -> PyResult<TinyFrame> {
         if group_keys.is_empty() {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Group keys cannot be empty"
+                "Group keys cannot be empty",
             ));
         }
 
         Self::validate_group_key_columns(frame, &group_keys)?;
 
-        let value_col = frame.columns.get(&value_column)
-            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-                format!("Column '{}' not found", value_column)
-            ))?;
+        let value_col = frame.columns.get(&value_column).ok_or_else(|| {
+            PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                "Column '{}' not found",
+                value_column
+            ))
+        })?;
 
         let groups: HashMap<GroupKeyRow, Vec<usize>> = (0..frame.length)
             .into_par_iter()
@@ -139,10 +150,9 @@ impl ParallelOps {
         condition: String,
         value: &PyAny,
     ) -> PyResult<TinyFrame> {
-        let col = frame.columns.get(&column)
-            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-                format!("Column '{}' not found", column)
-            ))?;
+        let col = frame.columns.get(&column).ok_or_else(|| {
+            PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column))
+        })?;
 
         // Create filter condition
         let filter_condition = FilterCondition::new(column, condition, value)?;
@@ -150,11 +160,9 @@ impl ParallelOps {
         // Apply filter in parallel
         let mask: Vec<bool> = (0..frame.length)
             .into_par_iter()
-            .map(|i| {
-                match Self::get_value_at_index(col, i) {
-                    Some(val) => filter_condition.evaluate(&val),
-                    None => false,
-                }
+            .map(|i| match Self::get_value_at_index(col, i) {
+                Some(val) => filter_condition.evaluate(&val),
+                None => false,
             })
             .collect();
 
@@ -170,16 +178,17 @@ impl ParallelOps {
     ) -> PyResult<TinyFrame> {
         if by.is_empty() {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Sort columns cannot be empty"
+                "Sort columns cannot be empty",
             ));
         }
 
         // Validate columns exist
         for col_name in &by {
             if !frame.columns.contains_key(col_name) {
-                return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-                    format!("Column '{}' not found", col_name)
-                ));
+                return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                    "Column '{}' not found",
+                    col_name
+                )));
             }
         }
 
@@ -214,9 +223,13 @@ impl ParallelOps {
             TinyColumn::Mixed(v) => v.get(index).and_then(|val| Some(val.clone())),
             TinyColumn::OptInt(v) => v.get(index).and_then(|val| val.map(ValueEnum::Int)),
             TinyColumn::OptFloat(v) => v.get(index).and_then(|val| val.map(ValueEnum::Float)),
-            TinyColumn::OptStr(v) => v.get(index).and_then(|val| val.as_ref().map(|s| ValueEnum::Str(s.clone()))),
+            TinyColumn::OptStr(v) => v
+                .get(index)
+                .and_then(|val| val.as_ref().map(|s| ValueEnum::Str(s.clone()))),
             TinyColumn::OptBool(v) => v.get(index).and_then(|val| val.map(ValueEnum::Bool)),
-            TinyColumn::OptPyObject(v) => v.get(index).and_then(|val| val.map(ValueEnum::PyObjectId)),
+            TinyColumn::OptPyObject(v) => {
+                v.get(index).and_then(|val| val.map(ValueEnum::PyObjectId))
+            }
             TinyColumn::OptMixed(v) => v.get(index).and_then(|val| val.clone()),
         }
     }
@@ -225,12 +238,11 @@ impl ParallelOps {
         match col {
             TinyColumn::Int(v) => indices.iter().map(|&i| v[i] as f64).sum(),
             TinyColumn::Float(v) => indices.iter().map(|&i| v[i]).sum(),
-            TinyColumn::OptInt(v) => indices.iter()
+            TinyColumn::OptInt(v) => indices
+                .iter()
                 .filter_map(|&i| v[i].map(|val| val as f64))
                 .sum(),
-            TinyColumn::OptFloat(v) => indices.iter()
-                .filter_map(|&i| v[i])
-                .sum(),
+            TinyColumn::OptFloat(v) => indices.iter().filter_map(|&i| v[i]).sum(),
             _ => 0.0, // Unsupported types
         }
     }
@@ -238,7 +250,11 @@ impl ParallelOps {
     fn calculate_mean_for_indices(col: &TinyColumn, indices: &[usize]) -> f64 {
         let sum = Self::calculate_sum_for_indices(col, indices);
         let count = indices.len() as f64;
-        if count > 0.0 { sum / count } else { 0.0 }
+        if count > 0.0 {
+            sum / count
+        } else {
+            0.0
+        }
     }
 
     fn create_result_frame(
@@ -292,39 +308,43 @@ impl ParallelOps {
     fn filter_column(col: &TinyColumn, mask: &[bool]) -> PyResult<TinyColumn> {
         match col {
             TinyColumn::Int(v) => {
-                let new_v: Vec<i64> = v.iter()
+                let new_v: Vec<i64> = v
+                    .iter()
                     .enumerate()
                     .filter(|(i, _)| mask[*i])
                     .map(|(_, val)| *val)
                     .collect();
                 Ok(TinyColumn::Int(new_v))
-            },
+            }
             TinyColumn::Float(v) => {
-                let new_v: Vec<f64> = v.iter()
+                let new_v: Vec<f64> = v
+                    .iter()
                     .enumerate()
                     .filter(|(i, _)| mask[*i])
                     .map(|(_, val)| *val)
                     .collect();
                 Ok(TinyColumn::Float(new_v))
-            },
+            }
             TinyColumn::Str(v) => {
-                let new_v: Vec<String> = v.iter()
+                let new_v: Vec<String> = v
+                    .iter()
                     .enumerate()
                     .filter(|(i, _)| mask[*i])
                     .map(|(_, val)| val.clone())
                     .collect();
                 Ok(TinyColumn::Str(new_v))
-            },
+            }
             TinyColumn::Bool(v) => {
-                let new_v: Vec<bool> = v.iter()
+                let new_v: Vec<bool> = v
+                    .iter()
                     .enumerate()
                     .filter(|(i, _)| mask[*i])
                     .map(|(_, val)| *val)
                     .collect();
                 Ok(TinyColumn::Bool(new_v))
-            },
+            }
             _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                "Unsupported column type for parallel filtering"
+                "Unsupported column type for parallel filtering",
             )),
         }
     }
@@ -340,10 +360,7 @@ impl ParallelOps {
     }
 
     /// `None` orders before `Some` so null/missing keys sort consistently.
-    fn compare_optional_values(
-        a: &Option<ValueEnum>,
-        b: &Option<ValueEnum>,
-    ) -> std::cmp::Ordering {
+    fn compare_optional_values(a: &Option<ValueEnum>, b: &Option<ValueEnum>) -> std::cmp::Ordering {
         match (a, b) {
             (None, None) => std::cmp::Ordering::Equal,
             (None, Some(_)) => std::cmp::Ordering::Less,
@@ -355,7 +372,9 @@ impl ParallelOps {
     fn compare_values(a: &ValueEnum, b: &ValueEnum) -> std::cmp::Ordering {
         match (a, b) {
             (ValueEnum::Int(x), ValueEnum::Int(y)) => x.cmp(y),
-            (ValueEnum::Float(x), ValueEnum::Float(y)) => x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal),
+            (ValueEnum::Float(x), ValueEnum::Float(y)) => {
+                x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal)
+            }
             (ValueEnum::Str(x), ValueEnum::Str(y)) => x.cmp(y),
             (ValueEnum::Bool(x), ValueEnum::Bool(y)) => x.cmp(y),
             _ => std::cmp::Ordering::Equal,
@@ -382,21 +401,21 @@ impl ParallelOps {
             TinyColumn::Int(v) => {
                 let new_v: Vec<i64> = indices.iter().map(|&i| v[i]).collect();
                 Ok(TinyColumn::Int(new_v))
-            },
+            }
             TinyColumn::Float(v) => {
                 let new_v: Vec<f64> = indices.iter().map(|&i| v[i]).collect();
                 Ok(TinyColumn::Float(new_v))
-            },
+            }
             TinyColumn::Str(v) => {
                 let new_v: Vec<String> = indices.iter().map(|&i| v[i].clone()).collect();
                 Ok(TinyColumn::Str(new_v))
-            },
+            }
             TinyColumn::Bool(v) => {
                 let new_v: Vec<bool> = indices.iter().map(|&i| v[i]).collect();
                 Ok(TinyColumn::Bool(new_v))
-            },
+            }
             _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                "Unsupported column type for parallel sorting"
+                "Unsupported column type for parallel sorting",
             )),
         }
     }
@@ -434,7 +453,9 @@ impl FilterCondition {
     fn compare_values(&self, a: &ValueEnum, b: &ValueEnum) -> std::cmp::Ordering {
         match (a, b) {
             (ValueEnum::Int(x), ValueEnum::Int(y)) => x.cmp(y),
-            (ValueEnum::Float(x), ValueEnum::Float(y)) => x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal),
+            (ValueEnum::Float(x), ValueEnum::Float(y)) => {
+                x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal)
+            }
             (ValueEnum::Str(x), ValueEnum::Str(y)) => x.cmp(y),
             (ValueEnum::Bool(x), ValueEnum::Bool(y)) => x.cmp(y),
             _ => std::cmp::Ordering::Equal,
@@ -452,7 +473,7 @@ impl FilterCondition {
             Ok(ValueEnum::Bool(bool_val))
         } else {
             Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                "Unsupported value type for filtering"
+                "Unsupported value type for filtering",
             ))
         }
     }
@@ -478,10 +499,7 @@ mod parallel_groupby_tests {
     fn parallel_groupby_sum_preserves_null_vs_some_second_key() {
         let mut columns = HashMap::new();
         columns.insert("k1".into(), TinyColumn::Str(vec!["A".into(), "A".into()]));
-        columns.insert(
-            "k2".into(),
-            TinyColumn::OptInt(vec![None, Some(1)]),
-        );
+        columns.insert("k2".into(), TinyColumn::OptInt(vec![None, Some(1)]));
         columns.insert("v".into(), TinyColumn::Float(vec![10.0, 20.0]));
         let frame = TinyFrame {
             columns,
@@ -489,26 +507,24 @@ mod parallel_groupby_tests {
             py_objects: HashMap::new(),
         };
 
-        let out = ParallelOps::parallel_groupby_sum(
-            &frame,
-            vec!["k1".into(), "k2".into()],
-            "v".into(),
-        )
-        .expect("parallel_groupby_sum");
+        let out =
+            ParallelOps::parallel_groupby_sum(&frame, vec!["k1".into(), "k2".into()], "v".into())
+                .expect("parallel_groupby_sum");
 
         assert_eq!(out.length, 2, "distinct key rows should not collapse");
         let lens: Vec<usize> = out.columns.values().map(|c| c.len()).collect();
-        assert!(lens.iter().all(|&l| l == 2), "all columns same length: {:?}", col_lens(&out));
+        assert!(
+            lens.iter().all(|&l| l == 2),
+            "all columns same length: {:?}",
+            col_lens(&out)
+        );
     }
 
     #[test]
     fn parallel_groupby_mean_chunked_merge_groupby_matches_row_count() {
         let mut columns = HashMap::new();
         columns.insert("k1".into(), TinyColumn::Str(vec!["X".into(), "X".into()]));
-        columns.insert(
-            "k2".into(),
-            TinyColumn::OptInt(vec![Some(1), None]),
-        );
+        columns.insert("k2".into(), TinyColumn::OptInt(vec![Some(1), None]));
         columns.insert("v".into(), TinyColumn::Float(vec![1.0, 2.0]));
         let frame = TinyFrame {
             columns,
@@ -524,7 +540,11 @@ mod parallel_groupby_tests {
 
         assert_eq!(merged.length, 2);
         let lens: Vec<usize> = merged.columns.values().map(|c| c.len()).collect();
-        assert!(lens.iter().all(|&l| l == 2), "merged columns aligned: {:?}", col_lens(&merged));
+        assert!(
+            lens.iter().all(|&l| l == 2),
+            "merged columns aligned: {:?}",
+            col_lens(&merged)
+        );
 
         let k2 = merged.columns.get("k2").expect("k2");
         match k2 {

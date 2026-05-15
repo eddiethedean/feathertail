@@ -6,27 +6,20 @@
 //! and otherwise delegates to [`scalar_fallback::ScalarOps`]. Do not import architecture-specific
 //! modules directly outside tests and SIMD backends.
 
-
 // Simple dispatch macro that works for both SIMD and no-SIMD cases
 macro_rules! simd_dispatch {
-    ($method:ident, $data:expr) => {
-        {
-            use crate::simd::scalar_fallback::ScalarOps;
-            ScalarOps::$method($data)
-        }
-    };
-    ($method:ident, $data:expr, $arg1:expr) => {
-        {
-            use crate::simd::scalar_fallback::ScalarOps;
-            ScalarOps::$method($data, $arg1)
-        }
-    };
-    ($method:ident, $data:expr, $arg1:expr, $arg2:expr) => {
-        {
-            use crate::simd::scalar_fallback::ScalarOps;
-            ScalarOps::$method($data, $arg1, $arg2)
-        }
-    };
+    ($method:ident, $data:expr) => {{
+        use crate::simd::scalar_fallback::ScalarOps;
+        ScalarOps::$method($data)
+    }};
+    ($method:ident, $data:expr, $arg1:expr) => {{
+        use crate::simd::scalar_fallback::ScalarOps;
+        ScalarOps::$method($data, $arg1)
+    }};
+    ($method:ident, $data:expr, $arg1:expr, $arg2:expr) => {{
+        use crate::simd::scalar_fallback::ScalarOps;
+        ScalarOps::$method($data, $arg1, $arg2)
+    }};
 }
 
 // Architecture-specific modules
@@ -53,7 +46,7 @@ mod property_tests;
 pub mod benchmarks;
 
 #[cfg(feature = "simd")]
-use cpu_features::{SimdCapabilities, SimdType, get_simd_capabilities, get_best_simd_type};
+use cpu_features::{get_best_simd_type, get_simd_capabilities, SimdCapabilities, SimdType};
 
 #[cfg(not(feature = "simd"))]
 #[derive(Debug, Clone, Copy)]

@@ -1,14 +1,13 @@
-use pyo3::prelude::*;
-use crate::frame::{TinyFrame, TinyColumn};
+use crate::frame::{TinyColumn, TinyFrame};
 use crate::utils::total_cmp_f64;
+use pyo3::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 /// Calculate skewness for numeric columns
 pub fn skew_impl(frame: &TinyFrame, column: &str) -> PyResult<f64> {
-    let col = frame.columns.get(column)
-        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-            format!("Column '{}' not found", column)
-        ))?;
+    let col = frame.columns.get(column).ok_or_else(|| {
+        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column))
+    })?;
 
     let values = extract_numeric_values_for_stats(col)?;
     if values.len() < 3 {
@@ -18,9 +17,7 @@ pub fn skew_impl(frame: &TinyFrame, column: &str) -> PyResult<f64> {
     let n = values.len() as f64;
     let mean = values.iter().sum::<f64>() / n;
     let std = {
-        let variance = values.iter()
-            .map(|&x| (x - mean).powi(2))
-            .sum::<f64>() / n;
+        let variance = values.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / n;
         variance.sqrt()
     };
 
@@ -28,19 +25,20 @@ pub fn skew_impl(frame: &TinyFrame, column: &str) -> PyResult<f64> {
         return Ok(0.0);
     }
 
-    let skewness = values.iter()
+    let skewness = values
+        .iter()
         .map(|&x| ((x - mean) / std).powi(3))
-        .sum::<f64>() / n;
+        .sum::<f64>()
+        / n;
 
     Ok(skewness)
 }
 
 /// Calculate kurtosis for numeric columns
 pub fn kurtosis_impl(frame: &TinyFrame, column: &str) -> PyResult<f64> {
-    let col = frame.columns.get(column)
-        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-            format!("Column '{}' not found", column)
-        ))?;
+    let col = frame.columns.get(column).ok_or_else(|| {
+        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column))
+    })?;
 
     let values = extract_numeric_values_for_stats(col)?;
     if values.len() < 4 {
@@ -50,9 +48,7 @@ pub fn kurtosis_impl(frame: &TinyFrame, column: &str) -> PyResult<f64> {
     let n = values.len() as f64;
     let mean = values.iter().sum::<f64>() / n;
     let std = {
-        let variance = values.iter()
-            .map(|&x| (x - mean).powi(2))
-            .sum::<f64>() / n;
+        let variance = values.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / n;
         variance.sqrt()
     };
 
@@ -60,9 +56,12 @@ pub fn kurtosis_impl(frame: &TinyFrame, column: &str) -> PyResult<f64> {
         return Ok(0.0);
     }
 
-    let kurtosis = values.iter()
+    let kurtosis = values
+        .iter()
         .map(|&x| ((x - mean) / std).powi(4))
-        .sum::<f64>() / n - 3.0; // Excess kurtosis
+        .sum::<f64>()
+        / n
+        - 3.0; // Excess kurtosis
 
     Ok(kurtosis)
 }
@@ -71,19 +70,18 @@ pub fn kurtosis_impl(frame: &TinyFrame, column: &str) -> PyResult<f64> {
 pub fn quantile_impl(frame: &TinyFrame, column: &str, q: f64) -> PyResult<f64> {
     if q < 0.0 || q > 1.0 {
         return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            "Quantile must be between 0.0 and 1.0"
+            "Quantile must be between 0.0 and 1.0",
         ));
     }
 
-    let col = frame.columns.get(column)
-        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-            format!("Column '{}' not found", column)
-        ))?;
+    let col = frame.columns.get(column).ok_or_else(|| {
+        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column))
+    })?;
 
     let mut values = extract_numeric_values_for_stats(col)?;
     if values.is_empty() {
         return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            "Cannot calculate quantile for empty column"
+            "Cannot calculate quantile for empty column",
         ));
     }
 
@@ -104,10 +102,9 @@ pub fn quantile_impl(frame: &TinyFrame, column: &str, q: f64) -> PyResult<f64> {
 
 /// Calculate mode for any column type
 pub fn mode_impl(frame: &TinyFrame, py: Python, column: &str) -> PyResult<PyObject> {
-    let col = frame.columns.get(column)
-        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-            format!("Column '{}' not found", column)
-        ))?;
+    let col = frame.columns.get(column).ok_or_else(|| {
+        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column))
+    })?;
 
     let mut counts: HashMap<String, i32> = HashMap::new();
     let mut max_count = 0;
@@ -210,7 +207,7 @@ pub fn mode_impl(frame: &TinyFrame, py: Python, column: &str) -> PyResult<PyObje
         }
         _ => {
             return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                "Mode calculation not supported for this column type"
+                "Mode calculation not supported for this column type",
             ));
         }
     }
@@ -223,10 +220,9 @@ pub fn mode_impl(frame: &TinyFrame, py: Python, column: &str) -> PyResult<PyObje
 
 /// Count unique values in a column
 pub fn nunique_impl(frame: &TinyFrame, column: &str) -> PyResult<usize> {
-    let col = frame.columns.get(column)
-        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-            format!("Column '{}' not found", column)
-        ))?;
+    let col = frame.columns.get(column).ok_or_else(|| {
+        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column))
+    })?;
 
     let mut unique_values: HashSet<String> = HashSet::new();
 
@@ -281,7 +277,7 @@ pub fn nunique_impl(frame: &TinyFrame, column: &str) -> PyResult<usize> {
         }
         _ => {
             return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                "Unique count not supported for this column type"
+                "Unique count not supported for this column type",
             ));
         }
     }
@@ -297,7 +293,7 @@ fn extract_numeric_values_for_stats(col: &TinyColumn) -> PyResult<Vec<f64>> {
         TinyColumn::OptInt(v) => Ok(v.iter().filter_map(|&x| x.map(|v| v as f64)).collect()),
         TinyColumn::OptFloat(v) => Ok(v.iter().filter_map(|&x| x).collect()),
         _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-            "Statistical operations only supported on numeric columns"
+            "Statistical operations only supported on numeric columns",
         )),
     }
 }

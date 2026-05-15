@@ -1,10 +1,13 @@
 //! Build join key → row index multimap from frame columns.
 
-use std::collections::HashMap;
-use pyo3::prelude::*;
 use crate::frame::{TinyColumn, TinyFrame, ValueEnum};
+use pyo3::prelude::*;
+use std::collections::HashMap;
 
-pub fn build_key_map(frame: &TinyFrame, columns: &[String]) -> PyResult<HashMap<Vec<ValueEnum>, Vec<usize>>> {
+pub fn build_key_map(
+    frame: &TinyFrame,
+    columns: &[String],
+) -> PyResult<HashMap<Vec<ValueEnum>, Vec<usize>>> {
     let mut key_map: HashMap<Vec<ValueEnum>, Vec<usize>> = HashMap::new();
 
     let n_key_cols = columns.len();

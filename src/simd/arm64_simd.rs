@@ -107,12 +107,24 @@ impl Arm64SimdOps {
             vst1q_f64(min_result.as_mut_ptr(), min_val);
             vst1q_f64(max_result.as_mut_ptr(), max_val);
 
-            let simd_min = min_result.iter().min_by(|a, b| total_cmp_f64(a, b)).unwrap();
-            let simd_max = max_result.iter().max_by(|a, b| total_cmp_f64(a, b)).unwrap();
+            let simd_min = min_result
+                .iter()
+                .min_by(|a, b| total_cmp_f64(a, b))
+                .unwrap();
+            let simd_max = max_result
+                .iter()
+                .max_by(|a, b| total_cmp_f64(a, b))
+                .unwrap();
 
             // Check remainder
-            let remainder_min = remainder.iter().min_by(|a, b| total_cmp_f64(a, b)).unwrap_or(&simd_min);
-            let remainder_max = remainder.iter().max_by(|a, b| total_cmp_f64(a, b)).unwrap_or(&simd_max);
+            let remainder_min = remainder
+                .iter()
+                .min_by(|a, b| total_cmp_f64(a, b))
+                .unwrap_or(&simd_min);
+            let remainder_max = remainder
+                .iter()
+                .max_by(|a, b| total_cmp_f64(a, b))
+                .unwrap_or(&simd_max);
 
             (simd_min.min(*remainder_min), simd_max.max(*remainder_max))
         }
@@ -125,7 +137,12 @@ impl Arm64SimdOps {
         }
 
         let mean = Self::mean_f64(data);
-        let variance = Self::sum_f64(&data.iter().map(|x| (x - mean).powi(2)).collect::<Vec<f64>>());
+        let variance = Self::sum_f64(
+            &data
+                .iter()
+                .map(|x| (x - mean).powi(2))
+                .collect::<Vec<f64>>(),
+        );
         variance / (data.len() - 1) as f64
     }
 
@@ -158,7 +175,8 @@ impl Arm64SimdOps {
             let simd_sum = result[0] + result[1];
 
             // Add remainder
-            let remainder_sum: f64 = remainder.iter()
+            let remainder_sum: f64 = remainder
+                .iter()
                 .zip(b.chunks_exact(2).remainder().iter())
                 .map(|(x, y)| x * y)
                 .sum();
@@ -315,17 +333,19 @@ impl Arm64StringOps {
         let needle_len = needle_bytes.len();
 
         if needle_len < 16 {
-            return haystack_bytes.windows(needle_len).any(|window| window == needle_bytes);
+            return haystack_bytes
+                .windows(needle_len)
+                .any(|window| window == needle_bytes);
         }
 
         unsafe {
             let needle_simd = vld1q_u8(needle_bytes.as_ptr());
-            
+
             for i in 0..=haystack_bytes.len() - needle_len {
                 let haystack_simd = vld1q_u8(haystack_bytes.as_ptr().add(i));
                 let cmp = vceqq_u8(needle_simd, haystack_simd);
                 let mask = vget_lane_u64(vreinterpret_u64_u8(vget_low_u8(cmp)), 0);
-                
+
                 if mask == 0xFFFFFFFFFFFFFFFF {
                     return true;
                 }

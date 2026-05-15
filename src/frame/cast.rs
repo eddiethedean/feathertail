@@ -1,6 +1,6 @@
-use crate::frame::{TinyFrame, TinyColumn};
+use crate::frame::{TinyColumn, TinyFrame};
 use pyo3::prelude::*;
-use pyo3::types::{PyInt, PyFloat, PyString, PyBool};
+use pyo3::types::{PyBool, PyFloat, PyInt, PyString};
 
 fn str_vec_to_i64(vec: &[String]) -> PyResult<Vec<i64>> {
     let mut out = Vec::with_capacity(vec.len());
@@ -38,7 +38,12 @@ fn str_vec_to_f64(vec: &[String]) -> PyResult<Vec<f64>> {
     Ok(out)
 }
 
-pub fn cast_column_impl(frame: &mut TinyFrame, py: Python, column_name: String, new_type: &PyAny) -> PyResult<()> {
+pub fn cast_column_impl(
+    frame: &mut TinyFrame,
+    py: Python,
+    column_name: String,
+    new_type: &PyAny,
+) -> PyResult<()> {
     let col = frame.columns.get_mut(&column_name).ok_or_else(|| {
         PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column_name))
     })?;
@@ -66,7 +71,9 @@ pub fn cast_column_impl(frame: &mut TinyFrame, py: Python, column_name: String, 
             } else if is_int {
                 TinyColumn::Int(vec.clone())
             } else {
-                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Unsupported target type"));
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "Unsupported target type",
+                ));
             }
         }
         TinyColumn::Float(vec) => {
@@ -79,7 +86,9 @@ pub fn cast_column_impl(frame: &mut TinyFrame, py: Python, column_name: String, 
             } else if is_float {
                 TinyColumn::Float(vec.clone())
             } else {
-                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Unsupported target type"));
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "Unsupported target type",
+                ));
             }
         }
         TinyColumn::Bool(vec) => {
@@ -92,7 +101,9 @@ pub fn cast_column_impl(frame: &mut TinyFrame, py: Python, column_name: String, 
             } else if is_bool {
                 TinyColumn::Bool(vec.clone())
             } else {
-                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Unsupported target type"));
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "Unsupported target type",
+                ));
             }
         }
         TinyColumn::Str(vec) => {
@@ -105,7 +116,9 @@ pub fn cast_column_impl(frame: &mut TinyFrame, py: Python, column_name: String, 
             } else if is_str {
                 TinyColumn::Str(vec.clone())
             } else {
-                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Unsupported target type"));
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "Unsupported target type",
+                ));
             }
         }
         TinyColumn::OptInt(vec) => {
@@ -118,7 +131,9 @@ pub fn cast_column_impl(frame: &mut TinyFrame, py: Python, column_name: String, 
             } else if is_int {
                 TinyColumn::OptInt(vec.clone())
             } else {
-                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Unsupported target type"));
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "Unsupported target type",
+                ));
             }
         }
         TinyColumn::OptFloat(vec) => {
@@ -131,33 +146,59 @@ pub fn cast_column_impl(frame: &mut TinyFrame, py: Python, column_name: String, 
             } else if is_float {
                 TinyColumn::OptFloat(vec.clone())
             } else {
-                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Unsupported target type"));
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "Unsupported target type",
+                ));
             }
         }
         TinyColumn::OptBool(vec) => {
             if is_str {
                 TinyColumn::OptStr(vec.iter().map(|o| o.map(|v| v.to_string())).collect())
             } else if is_int {
-                TinyColumn::OptInt(vec.iter().map(|o| o.map(|v| if v { 1 } else { 0 })).collect())
+                TinyColumn::OptInt(
+                    vec.iter()
+                        .map(|o| o.map(|v| if v { 1 } else { 0 }))
+                        .collect(),
+                )
             } else if is_float {
-                TinyColumn::OptFloat(vec.iter().map(|o| o.map(|v| if v { 1.0 } else { 0.0 })).collect())
+                TinyColumn::OptFloat(
+                    vec.iter()
+                        .map(|o| o.map(|v| if v { 1.0 } else { 0.0 }))
+                        .collect(),
+                )
             } else if is_bool {
                 TinyColumn::OptBool(vec.clone())
             } else {
-                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Unsupported target type"));
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "Unsupported target type",
+                ));
             }
         }
         TinyColumn::OptStr(vec) => {
             if is_int {
-                TinyColumn::OptInt(vec.iter().map(|o| o.as_ref().and_then(|s| s.parse::<i64>().ok())).collect())
+                TinyColumn::OptInt(
+                    vec.iter()
+                        .map(|o| o.as_ref().and_then(|s| s.parse::<i64>().ok()))
+                        .collect(),
+                )
             } else if is_float {
-                TinyColumn::OptFloat(vec.iter().map(|o| o.as_ref().and_then(|s| s.parse::<f64>().ok())).collect())
+                TinyColumn::OptFloat(
+                    vec.iter()
+                        .map(|o| o.as_ref().and_then(|s| s.parse::<f64>().ok()))
+                        .collect(),
+                )
             } else if is_bool {
-                TinyColumn::OptBool(vec.iter().map(|o| o.as_ref().map(|s| !s.is_empty())).collect())
+                TinyColumn::OptBool(
+                    vec.iter()
+                        .map(|o| o.as_ref().map(|s| !s.is_empty()))
+                        .collect(),
+                )
             } else if is_str {
                 TinyColumn::OptStr(vec.clone())
             } else {
-                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Unsupported target type"));
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "Unsupported target type",
+                ));
             }
         }
         _ => {

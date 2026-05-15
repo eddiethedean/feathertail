@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::simd::{SimdOps, SimdStringOps, SimdCapabilities, SimdType};
+    use crate::simd::{SimdCapabilities, SimdOps, SimdStringOps, SimdType};
     use crate::utils::total_cmp_f64;
     use std::time::Instant;
 
@@ -61,8 +61,13 @@ mod tests {
         for data in test_cases {
             let expected: f64 = data.iter().sum();
             let actual = SimdOps::sum_f64(&data);
-            assert!((actual - expected).abs() < 1e-10, 
-                "sum_f64 failed for data: {:?}, expected: {}, actual: {}", data, expected, actual);
+            assert!(
+                (actual - expected).abs() < 1e-10,
+                "sum_f64 failed for data: {:?}, expected: {}, actual: {}",
+                data,
+                expected,
+                actual
+            );
         }
     }
 
@@ -83,8 +88,13 @@ mod tests {
             }
             let expected: f64 = data.iter().sum::<f64>() / data.len() as f64;
             let actual = SimdOps::mean_f64(&data);
-            assert!((actual - expected).abs() < 1e-10, 
-                "mean_f64 failed for data: {:?}, expected: {}, actual: {}", data, expected, actual);
+            assert!(
+                (actual - expected).abs() < 1e-10,
+                "mean_f64 failed for data: {:?}, expected: {}, actual: {}",
+                data,
+                expected,
+                actual
+            );
         }
     }
 
@@ -108,8 +118,16 @@ mod tests {
             let expected_min = *data.iter().min().unwrap();
             let expected_max = *data.iter().max().unwrap();
             let (actual_min, actual_max) = SimdOps::min_max_i64(&data);
-            assert_eq!(actual_min, expected_min, "min_i64 failed for data: {:?}", data);
-            assert_eq!(actual_max, expected_max, "max_i64 failed for data: {:?}", data);
+            assert_eq!(
+                actual_min, expected_min,
+                "min_i64 failed for data: {:?}",
+                data
+            );
+            assert_eq!(
+                actual_max, expected_max,
+                "max_i64 failed for data: {:?}",
+                data
+            );
         }
     }
 
@@ -133,10 +151,20 @@ mod tests {
             let expected_min = *data.iter().min_by(|a, b| total_cmp_f64(a, b)).unwrap();
             let expected_max = *data.iter().max_by(|a, b| total_cmp_f64(a, b)).unwrap();
             let (actual_min, actual_max) = SimdOps::min_max_f64(&data);
-            assert!((actual_min - expected_min).abs() < 1e-10, 
-                "min_f64 failed for data: {:?}, expected: {}, actual: {}", data, expected_min, actual_min);
-            assert!((actual_max - expected_max).abs() < 1e-10, 
-                "max_f64 failed for data: {:?}, expected: {}, actual: {}", data, expected_max, actual_max);
+            assert!(
+                (actual_min - expected_min).abs() < 1e-10,
+                "min_f64 failed for data: {:?}, expected: {}, actual: {}",
+                data,
+                expected_min,
+                actual_min
+            );
+            assert!(
+                (actual_max - expected_max).abs() < 1e-10,
+                "max_f64 failed for data: {:?}, expected: {}, actual: {}",
+                data,
+                expected_max,
+                actual_max
+            );
         }
     }
 
@@ -155,10 +183,16 @@ mod tests {
                 continue; // Skip cases with insufficient data
             }
             let mean = data.iter().sum::<f64>() / data.len() as f64;
-            let expected = data.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / (data.len() - 1) as f64;
+            let expected =
+                data.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / (data.len() - 1) as f64;
             let actual = SimdOps::variance_f64(&data);
-            assert!((actual - expected).abs() < 1e-10, 
-                "variance_f64 failed for data: {:?}, expected: {}, actual: {}", data, expected, actual);
+            assert!(
+                (actual - expected).abs() < 1e-10,
+                "variance_f64 failed for data: {:?}, expected: {}, actual: {}",
+                data,
+                expected,
+                actual
+            );
         }
     }
 
@@ -178,8 +212,13 @@ mod tests {
             let variance = SimdOps::variance_f64(&data);
             let expected = variance.sqrt();
             let actual = SimdOps::std_dev_f64(&data);
-            assert!((actual - expected).abs() < 1e-10, 
-                "std_dev_f64 failed for data: {:?}, expected: {}, actual: {}", data, expected, actual);
+            assert!(
+                (actual - expected).abs() < 1e-10,
+                "std_dev_f64 failed for data: {:?}, expected: {}, actual: {}",
+                data,
+                expected,
+                actual
+            );
         }
     }
 
@@ -196,8 +235,14 @@ mod tests {
         for (a, b) in test_cases {
             let expected: f64 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
             let actual = SimdOps::dot_product_f64(&a, &b);
-            assert!((actual - expected).abs() < 1e-10, 
-                "dot_product_f64 failed for a: {:?}, b: {:?}, expected: {}, actual: {}", a, b, expected, actual);
+            assert!(
+                (actual - expected).abs() < 1e-10,
+                "dot_product_f64 failed for a: {:?}, b: {:?}, expected: {}, actual: {}",
+                a,
+                b,
+                expected,
+                actual
+            );
         }
     }
 
@@ -216,8 +261,13 @@ mod tests {
             let actual = SimdOps::add_f64(&a, &b);
             assert_eq!(actual.len(), expected.len(), "add_f64 length mismatch");
             for (i, (exp, act)) in expected.iter().zip(actual.iter()).enumerate() {
-                assert!((act - exp).abs() < 1e-10, 
-                    "add_f64 failed at index {}: expected {}, actual {}", i, exp, act);
+                assert!(
+                    (act - exp).abs() < 1e-10,
+                    "add_f64 failed at index {}: expected {}, actual {}",
+                    i,
+                    exp,
+                    act
+                );
             }
         }
     }
@@ -237,8 +287,13 @@ mod tests {
             let actual = SimdOps::mul_f64(&a, &b);
             assert_eq!(actual.len(), expected.len(), "mul_f64 length mismatch");
             for (i, (exp, act)) in expected.iter().zip(actual.iter()).enumerate() {
-                assert!((act - exp).abs() < 1e-10, 
-                    "mul_f64 failed at index {}: expected {}, actual {}", i, exp, act);
+                assert!(
+                    (act - exp).abs() < 1e-10,
+                    "mul_f64 failed at index {}: expected {}, actual {}",
+                    i,
+                    exp,
+                    act
+                );
             }
         }
     }
@@ -251,7 +306,11 @@ mod tests {
         for input in test_cases {
             let expected = input.to_uppercase();
             let actual = SimdStringOps::to_uppercase_simd(&input);
-            assert_eq!(actual, expected, "to_uppercase_simd failed for input: '{}'", input);
+            assert_eq!(
+                actual, expected,
+                "to_uppercase_simd failed for input: '{}'",
+                input
+            );
         }
     }
 
@@ -262,7 +321,11 @@ mod tests {
         for input in test_cases {
             let expected = input.to_lowercase();
             let actual = SimdStringOps::to_lowercase_simd(&input);
-            assert_eq!(actual, expected, "to_lowercase_simd failed for input: '{}'", input);
+            assert_eq!(
+                actual, expected,
+                "to_lowercase_simd failed for input: '{}'",
+                input
+            );
         }
     }
 
@@ -285,9 +348,11 @@ mod tests {
 
         for (haystack, needle, expected) in test_cases {
             let actual = SimdStringOps::contains_simd(haystack, needle);
-            assert_eq!(actual, expected, 
-                "contains_simd failed for haystack: '{}', needle: '{}', expected: {}, actual: {}", 
-                haystack, needle, expected, actual);
+            assert_eq!(
+                actual, expected,
+                "contains_simd failed for haystack: '{}', needle: '{}', expected: {}, actual: {}",
+                haystack, needle, expected, actual
+            );
         }
     }
 
@@ -295,17 +360,22 @@ mod tests {
     #[test]
     fn test_cpu_feature_detection() {
         let capabilities = SimdCapabilities::detect();
-        
+
         // Test that capabilities are detected correctly
-        assert!(capabilities.avx2 || capabilities.neon || !capabilities.has_simd(), 
-            "CPU feature detection should be consistent");
-        
+        assert!(
+            capabilities.avx2 || capabilities.neon || !capabilities.has_simd(),
+            "CPU feature detection should be consistent"
+        );
+
         // Test that we can get the best SIMD type
         let simd_type = capabilities.get_best_simd_type();
         match simd_type {
             SimdType::AVX2 => assert!(capabilities.avx2, "AVX2 should be detected if type is AVX2"),
             SimdType::NEON => assert!(capabilities.neon, "NEON should be detected if type is NEON"),
-            SimdType::Scalar => assert!(!capabilities.has_simd(), "Scalar should be used when no SIMD available"),
+            SimdType::Scalar => assert!(
+                !capabilities.has_simd(),
+                "Scalar should be used when no SIMD available"
+            ),
         }
     }
 
@@ -314,11 +384,14 @@ mod tests {
     fn test_simd_type_consistency() {
         let simd_type = SimdOps::get_simd_type();
         let capabilities = SimdOps::get_capabilities();
-        
+
         match simd_type {
             SimdType::AVX2 => assert!(capabilities.avx2, "AVX2 type should match capabilities"),
             SimdType::NEON => assert!(capabilities.neon, "NEON type should match capabilities"),
-            SimdType::Scalar => assert!(!capabilities.has_simd(), "Scalar type should match capabilities"),
+            SimdType::Scalar => assert!(
+                !capabilities.has_simd(),
+                "Scalar type should match capabilities"
+            ),
         }
     }
 
@@ -327,19 +400,27 @@ mod tests {
     fn test_performance_benchmark() {
         let large_data = generate_test_data_f64(10000);
         let iterations = 1000;
-        
+
         // Benchmark sum operation
         let start = Instant::now();
         for _ in 0..iterations {
             let _ = SimdOps::sum_f64(&large_data);
         }
         let duration = start.elapsed();
-        
-        println!("SIMD sum_f64 performance: {} iterations in {:?} ({:?} per iteration)", 
-                iterations, duration, duration / iterations);
-        
+
+        println!(
+            "SIMD sum_f64 performance: {} iterations in {:?} ({:?} per iteration)",
+            iterations,
+            duration,
+            duration / iterations
+        );
+
         // Benchmark should complete in reasonable time
-        assert!(duration.as_millis() < 1000, "Performance test took too long: {:?}", duration);
+        assert!(
+            duration.as_millis() < 1000,
+            "Performance test took too long: {:?}",
+            duration
+        );
     }
 
     // Test edge cases
@@ -351,14 +432,14 @@ mod tests {
         assert_eq!(SimdOps::mean_f64(&[]), 0.0);
         assert_eq!(SimdOps::variance_f64(&[]), 0.0);
         assert_eq!(SimdOps::std_dev_f64(&[]), 0.0);
-        
+
         // Single element
         assert_eq!(SimdOps::sum_i64(&[42]), 42);
         assert_eq!(SimdOps::sum_f64(&[3.14]), 3.14);
         assert_eq!(SimdOps::mean_f64(&[3.14]), 3.14);
         assert_eq!(SimdOps::variance_f64(&[3.14]), 0.0);
         assert_eq!(SimdOps::std_dev_f64(&[3.14]), 0.0);
-        
+
         // Two elements
         assert_eq!(SimdOps::variance_f64(&[1.0, 2.0]), 0.5);
         assert!((SimdOps::std_dev_f64(&[1.0, 2.0]) - 0.7071067811865476).abs() < 1e-10);
@@ -368,12 +449,12 @@ mod tests {
     #[test]
     fn test_deterministic_behavior() {
         let data = generate_test_data_f64(1000);
-        
+
         // Run the same operation multiple times
         let result1 = SimdOps::sum_f64(&data);
         let result2 = SimdOps::sum_f64(&data);
         let result3 = SimdOps::sum_f64(&data);
-        
+
         assert_eq!(result1, result2);
         assert_eq!(result2, result3);
     }

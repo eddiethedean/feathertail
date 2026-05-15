@@ -104,13 +104,21 @@ fn has_neon_impl() -> bool {
 
 // Fallback for unsupported architectures
 #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-fn has_avx2_impl() -> bool { false }
+fn has_avx2_impl() -> bool {
+    false
+}
 #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-fn has_sse2_impl() -> bool { false }
+fn has_sse2_impl() -> bool {
+    false
+}
 #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-fn has_sse4_1_impl() -> bool { false }
+fn has_sse4_1_impl() -> bool {
+    false
+}
 #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-fn has_neon_impl() -> bool { false }
+fn has_neon_impl() -> bool {
+    false
+}
 
 // Convenience functions for checking specific features
 pub fn has_avx2() -> bool {

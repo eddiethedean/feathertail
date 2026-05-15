@@ -1,7 +1,7 @@
+use crate::frame::{TinyColumn, TinyFrame, ValueEnum};
 use pyo3::prelude::*;
 use std::borrow::Cow;
 use std::collections::HashMap;
-use crate::frame::{TinyFrame, TinyColumn, ValueEnum};
 
 // Copy-on-write wrapper for columns
 #[derive(Clone)]
@@ -80,9 +80,10 @@ impl FilterCondition {
             "<=" => self.compare_less_equal(py, val),
             "in" => self.check_in(py, val),
             "not_in" => Ok(!self.check_in(py, val)?),
-            _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                format!("Unknown condition: {}", self.condition)
-            )),
+            _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "Unknown condition: {}",
+                self.condition
+            ))),
         }
     }
 
@@ -91,19 +92,19 @@ impl FilterCondition {
             ValueEnum::Str(s) => {
                 let py_str = self.value.extract::<String>(py)?;
                 Ok(s == &py_str)
-            },
+            }
             ValueEnum::Int(i) => {
                 let py_int = self.value.extract::<i64>(py)?;
                 Ok(*i == py_int)
-            },
+            }
             ValueEnum::Float(f) => {
                 let py_float = self.value.extract::<f64>(py)?;
                 Ok((*f - py_float).abs() < f64::EPSILON)
-            },
+            }
             ValueEnum::Bool(b) => {
                 let py_bool = self.value.extract::<bool>(py)?;
                 Ok(*b == py_bool)
-            },
+            }
             _ => Ok(false),
         }
     }
@@ -117,11 +118,11 @@ impl FilterCondition {
             ValueEnum::Int(i) => {
                 let py_int = self.value.extract::<i64>(py)?;
                 Ok(*i > py_int)
-            },
+            }
             ValueEnum::Float(f) => {
                 let py_float = self.value.extract::<f64>(py)?;
                 Ok(*f > py_float)
-            },
+            }
             _ => Ok(false),
         }
     }
@@ -131,11 +132,11 @@ impl FilterCondition {
             ValueEnum::Int(i) => {
                 let py_int = self.value.extract::<i64>(py)?;
                 Ok(*i < py_int)
-            },
+            }
             ValueEnum::Float(f) => {
                 let py_float = self.value.extract::<f64>(py)?;
                 Ok(*f < py_float)
-            },
+            }
             _ => Ok(false),
         }
     }
@@ -145,11 +146,11 @@ impl FilterCondition {
             ValueEnum::Int(i) => {
                 let py_int = self.value.extract::<i64>(py)?;
                 Ok(*i >= py_int)
-            },
+            }
             ValueEnum::Float(f) => {
                 let py_float = self.value.extract::<f64>(py)?;
                 Ok(*f >= py_float)
-            },
+            }
             _ => Ok(false),
         }
     }
@@ -159,11 +160,11 @@ impl FilterCondition {
             ValueEnum::Int(i) => {
                 let py_int = self.value.extract::<i64>(py)?;
                 Ok(*i <= py_int)
-            },
+            }
             ValueEnum::Float(f) => {
                 let py_float = self.value.extract::<f64>(py)?;
                 Ok(*f <= py_float)
-            },
+            }
             _ => Ok(false),
         }
     }
@@ -178,10 +179,12 @@ impl FilterCondition {
 // Optimized frame operations using references
 impl TinyFrame {
     pub fn filter_optimized(&self, py: Python, condition: &FilterCondition) -> PyResult<TinyFrame> {
-        let col = self.columns.get(&condition.column)
-            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-                format!("Column '{}' not found", condition.column)
-            ))?;
+        let col = self.columns.get(&condition.column).ok_or_else(|| {
+            PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                "Column '{}' not found",
+                condition.column
+            ))
+        })?;
 
         // Use iterator instead of manual indexing for better performance
         let mask: Vec<bool> = (0..self.length)
@@ -220,7 +223,7 @@ impl TinyFrame {
 
     fn apply_mask_optimized(&self, mask: &[bool]) -> PyResult<TinyFrame> {
         let mut new_columns: HashMap<String, TinyColumn> = HashMap::new();
-        
+
         for (col_name, col_data) in &self.columns {
             let new_col = self.filter_column_optimized(col_data, mask)?;
             new_columns.insert(col_name.clone(), new_col);
@@ -238,101 +241,113 @@ impl TinyFrame {
     fn filter_column_optimized(&self, col: &TinyColumn, mask: &[bool]) -> PyResult<TinyColumn> {
         match col {
             TinyColumn::Int(v) => {
-                let new_v: Vec<i64> = v.iter()
+                let new_v: Vec<i64> = v
+                    .iter()
                     .enumerate()
                     .filter(|(i, _)| mask[*i])
                     .map(|(_, val)| *val)
                     .collect();
                 Ok(TinyColumn::Int(new_v))
-            },
+            }
             TinyColumn::Float(v) => {
-                let new_v: Vec<f64> = v.iter()
+                let new_v: Vec<f64> = v
+                    .iter()
                     .enumerate()
                     .filter(|(i, _)| mask[*i])
                     .map(|(_, val)| *val)
                     .collect();
                 Ok(TinyColumn::Float(new_v))
-            },
+            }
             TinyColumn::Str(v) => {
-                let new_v: Vec<String> = v.iter()
+                let new_v: Vec<String> = v
+                    .iter()
                     .enumerate()
                     .filter(|(i, _)| mask[*i])
                     .map(|(_, val)| val.clone())
                     .collect();
                 Ok(TinyColumn::Str(new_v))
-            },
+            }
             TinyColumn::Bool(v) => {
-                let new_v: Vec<bool> = v.iter()
+                let new_v: Vec<bool> = v
+                    .iter()
                     .enumerate()
                     .filter(|(i, _)| mask[*i])
                     .map(|(_, val)| *val)
                     .collect();
                 Ok(TinyColumn::Bool(new_v))
-            },
+            }
             TinyColumn::OptInt(v) => {
-                let new_v: Vec<Option<i64>> = v.iter()
+                let new_v: Vec<Option<i64>> = v
+                    .iter()
                     .enumerate()
                     .filter(|(i, _)| mask[*i])
                     .map(|(_, val)| *val)
                     .collect();
                 Ok(TinyColumn::OptInt(new_v))
-            },
+            }
             TinyColumn::OptFloat(v) => {
-                let new_v: Vec<Option<f64>> = v.iter()
+                let new_v: Vec<Option<f64>> = v
+                    .iter()
                     .enumerate()
                     .filter(|(i, _)| mask[*i])
                     .map(|(_, val)| *val)
                     .collect();
                 Ok(TinyColumn::OptFloat(new_v))
-            },
+            }
             TinyColumn::OptStr(v) => {
-                let new_v: Vec<Option<String>> = v.iter()
+                let new_v: Vec<Option<String>> = v
+                    .iter()
                     .enumerate()
                     .filter(|(i, _)| mask[*i])
                     .map(|(_, val)| val.clone())
                     .collect();
                 Ok(TinyColumn::OptStr(new_v))
-            },
+            }
             TinyColumn::OptBool(v) => {
-                let new_v: Vec<Option<bool>> = v.iter()
+                let new_v: Vec<Option<bool>> = v
+                    .iter()
                     .enumerate()
                     .filter(|(i, _)| mask[*i])
                     .map(|(_, val)| *val)
                     .collect();
                 Ok(TinyColumn::OptBool(new_v))
-            },
+            }
             TinyColumn::PyObject(v) => {
-                let new_v: Vec<u64> = v.iter()
+                let new_v: Vec<u64> = v
+                    .iter()
                     .enumerate()
                     .filter(|(i, _)| mask[*i])
                     .map(|(_, val)| *val)
                     .collect();
                 Ok(TinyColumn::PyObject(new_v))
-            },
+            }
             TinyColumn::OptPyObject(v) => {
-                let new_v: Vec<Option<u64>> = v.iter()
+                let new_v: Vec<Option<u64>> = v
+                    .iter()
                     .enumerate()
                     .filter(|(i, _)| mask[*i])
                     .map(|(_, val)| *val)
                     .collect();
                 Ok(TinyColumn::OptPyObject(new_v))
-            },
+            }
             TinyColumn::Mixed(v) => {
-                let new_v: Vec<ValueEnum> = v.iter()
+                let new_v: Vec<ValueEnum> = v
+                    .iter()
                     .enumerate()
                     .filter(|(i, _)| mask[*i])
                     .map(|(_, val)| val.clone())
                     .collect();
                 Ok(TinyColumn::Mixed(new_v))
-            },
+            }
             TinyColumn::OptMixed(v) => {
-                let new_v: Vec<Option<ValueEnum>> = v.iter()
+                let new_v: Vec<Option<ValueEnum>> = v
+                    .iter()
                     .enumerate()
                     .filter(|(i, _)| mask[*i])
                     .map(|(_, val)| val.clone())
                     .collect();
                 Ok(TinyColumn::OptMixed(new_v))
-            },
+            }
         }
     }
 }

@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use crate::frame::{TinyColumn, TinyFrame, ValueEnum};
 use pyo3::prelude::*;
-use crate::frame::{TinyFrame, TinyColumn, ValueEnum};
+use std::collections::HashMap;
 
-mod validation;
 mod key_index;
+mod validation;
 
 // Join types
 #[derive(Debug, Clone)]
@@ -69,22 +69,24 @@ impl JoinOps {
         // Validate join columns
         for col in &left_on {
             if !left.columns.contains_key(col) {
-                return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-                    format!("Left column '{}' not found", col)
-                ));
+                return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                    "Left column '{}' not found",
+                    col
+                )));
             }
         }
         for col in &right_on {
             if !right.columns.contains_key(col) {
-                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                    format!("Right column '{}' not found", col)
-                ));
+                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Right column '{}' not found",
+                    col
+                )));
             }
         }
 
         if left_on.len() != right_on.len() {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Number of join columns must match"
+                "Number of join columns must match",
             ));
         }
 
@@ -96,10 +98,18 @@ impl JoinOps {
 
         // Perform the join based on type
         match join_type {
-            JoinType::Inner => Self::inner_join_impl(left, right, &left_keys, &right_keys, &left_on, &right_on),
-            JoinType::Left => Self::left_join_impl(left, right, &left_keys, &right_keys, &left_on, &right_on),
-            JoinType::Right => Self::right_join_impl(left, right, &left_keys, &right_keys, &left_on, &right_on),
-            JoinType::Outer => Self::outer_join_impl(left, right, &left_keys, &right_keys, &left_on, &right_on),
+            JoinType::Inner => {
+                Self::inner_join_impl(left, right, &left_keys, &right_keys, &left_on, &right_on)
+            }
+            JoinType::Left => {
+                Self::left_join_impl(left, right, &left_keys, &right_keys, &left_on, &right_on)
+            }
+            JoinType::Right => {
+                Self::right_join_impl(left, right, &left_keys, &right_keys, &left_on, &right_on)
+            }
+            JoinType::Outer => {
+                Self::outer_join_impl(left, right, &left_keys, &right_keys, &left_on, &right_on)
+            }
         }
     }
 
@@ -138,7 +148,7 @@ impl JoinOps {
         // Add left columns (excluding join columns)
         for (col_name, col_data) in &left.columns {
             if !left_on.contains(col_name) {
-                let mut new_col = col_data.empty_same_layout();
+                let new_col = col_data.empty_same_layout();
                 result_columns.insert(col_name.clone(), new_col);
             }
         }
@@ -146,7 +156,7 @@ impl JoinOps {
         // Add right columns (excluding join columns)
         for (col_name, col_data) in &right.columns {
             if !right_on.contains(col_name) {
-                let mut new_col = col_data.empty_same_layout();
+                let new_col = col_data.empty_same_layout();
                 result_columns.insert(col_name.clone(), new_col);
             }
         }
@@ -154,7 +164,7 @@ impl JoinOps {
         // Add join columns (from left)
         for col_name in left_on {
             let col_data = left.columns.get(col_name).unwrap();
-            let mut new_col = col_data.empty_same_layout();
+            let new_col = col_data.empty_same_layout();
             result_columns.insert(col_name.clone(), new_col);
         }
 
@@ -184,12 +194,12 @@ impl JoinOps {
                         }
 
                         // Add join key values
-                        for (i, col_name) in left_on.iter().enumerate() {
+                        for (_i, col_name) in left_on.iter().enumerate() {
                             let left_col = left.columns.get(col_name).unwrap();
-                            result_columns.get_mut(col_name).unwrap().append_row_join(
-                                left_col,
-                                left_idx,
-                            )?;
+                            result_columns
+                                .get_mut(col_name)
+                                .unwrap()
+                                .append_row_join(left_col, left_idx)?;
                         }
 
                         result_length += 1;
@@ -211,7 +221,7 @@ impl JoinOps {
         right: &TinyFrame,
         left_keys: &HashMap<Vec<ValueEnum>, Vec<usize>>,
         right_keys: &HashMap<Vec<ValueEnum>, Vec<usize>>,
-        left_on: &[String],
+        _left_on: &[String],
         right_on: &[String],
     ) -> PyResult<TinyFrame> {
         let mut result_columns: HashMap<String, TinyColumn> = HashMap::new();
@@ -219,7 +229,7 @@ impl JoinOps {
 
         // Add left columns
         for (col_name, col_data) in &left.columns {
-            let mut new_col = col_data.empty_same_layout();
+            let new_col = col_data.empty_same_layout();
             result_columns.insert(col_name.clone(), new_col);
         }
 
@@ -239,10 +249,10 @@ impl JoinOps {
                     for &right_idx in right_indices {
                         // Add left row data
                         for (col_name, col_data) in &left.columns {
-                            result_columns.get_mut(col_name).unwrap().append_row_join(
-                                col_data,
-                                left_idx,
-                            )?;
+                            result_columns
+                                .get_mut(col_name)
+                                .unwrap()
+                                .append_row_join(col_data, left_idx)?;
                         }
 
                         // Add right row data
@@ -263,14 +273,14 @@ impl JoinOps {
                 for &left_idx in left_indices {
                     // Add left row data
                     for (col_name, col_data) in &left.columns {
-                            result_columns
-                                .get_mut(col_name)
-                                .unwrap()
-                                .append_row_join(col_data, left_idx)?;
+                        result_columns
+                            .get_mut(col_name)
+                            .unwrap()
+                            .append_row_join(col_data, left_idx)?;
                     }
 
                     // Add null values for right columns
-                    for (col_name, col_data) in &right.columns {
+                    for (col_name, _col_data) in &right.columns {
                         if !right_on.contains(col_name) {
                             result_columns
                                 .get_mut(col_name)
@@ -298,7 +308,7 @@ impl JoinOps {
         left_keys: &HashMap<Vec<ValueEnum>, Vec<usize>>,
         right_keys: &HashMap<Vec<ValueEnum>, Vec<usize>>,
         left_on: &[String],
-        right_on: &[String],
+        _right_on: &[String],
     ) -> PyResult<TinyFrame> {
         let mut result_columns: HashMap<String, TinyColumn> = HashMap::new();
         let mut result_length = 0;
@@ -313,7 +323,7 @@ impl JoinOps {
 
         // Add right columns
         for (col_name, col_data) in &right.columns {
-            let mut new_col = col_data.empty_same_layout();
+            let new_col = col_data.empty_same_layout();
             result_columns.insert(col_name.clone(), new_col);
         }
 
@@ -335,10 +345,10 @@ impl JoinOps {
 
                         // Add right row data
                         for (col_name, col_data) in &right.columns {
-                            result_columns.get_mut(col_name).unwrap().append_row_join(
-                                col_data,
-                                right_idx,
-                            )?;
+                            result_columns
+                                .get_mut(col_name)
+                                .unwrap()
+                                .append_row_join(col_data, right_idx)?;
                         }
 
                         result_length += 1;
@@ -348,7 +358,7 @@ impl JoinOps {
                 // Non-matching right rows (with nulls for left columns)
                 for &right_idx in right_indices {
                     // Add null values for left columns
-                    for (col_name, col_data) in &left.columns {
+                    for (col_name, _col_data) in &left.columns {
                         if !left_on.contains(col_name) {
                             result_columns
                                 .get_mut(col_name)
@@ -383,8 +393,8 @@ impl JoinOps {
         right: &TinyFrame,
         left_keys: &HashMap<Vec<ValueEnum>, Vec<usize>>,
         right_keys: &HashMap<Vec<ValueEnum>, Vec<usize>>,
-        left_on: &[String],
-        right_on: &[String],
+        _left_on: &[String],
+        _right_on: &[String],
     ) -> PyResult<TinyFrame> {
         let mut result_columns: HashMap<String, TinyColumn> = HashMap::new();
         let mut result_length = 0;
@@ -403,7 +413,10 @@ impl JoinOps {
         }
 
         // Collect all unique keys
-        let mut all_keys = left_keys.keys().cloned().collect::<std::collections::HashSet<_>>();
+        let mut all_keys = left_keys
+            .keys()
+            .cloned()
+            .collect::<std::collections::HashSet<_>>();
         all_keys.extend(right_keys.keys().cloned());
 
         // Perform the join
@@ -443,10 +456,10 @@ impl JoinOps {
                     for &left_idx in left_idxs {
                         // Add left row data
                         for (col_name, col_data) in &left.columns {
-                            result_columns.get_mut(col_name).unwrap().append_row_join(
-                                col_data,
-                                left_idx,
-                            )?;
+                            result_columns
+                                .get_mut(col_name)
+                                .unwrap()
+                                .append_row_join(col_data, left_idx)?;
                         }
 
                         // Add null values for right columns
@@ -466,7 +479,7 @@ impl JoinOps {
                     // Only right side has this key
                     for &right_idx in right_idxs {
                         // Add null values for left columns
-                        for (col_name, col_data) in &left.columns {
+                        for (col_name, _col_data) in &left.columns {
                             result_columns
                                 .get_mut(col_name)
                                 .unwrap()
@@ -475,10 +488,10 @@ impl JoinOps {
 
                         // Add right row data
                         for (col_name, col_data) in &right.columns {
-                            result_columns.get_mut(col_name).unwrap().append_row_join(
-                                col_data,
-                                right_idx,
-                            )?;
+                            result_columns
+                                .get_mut(col_name)
+                                .unwrap()
+                                .append_row_join(col_data, right_idx)?;
                         }
 
                         result_length += 1;
@@ -506,13 +519,13 @@ impl JoinOps {
 
         // Add all columns from both frames
         for (col_name, col_data) in &left.columns {
-            let mut new_col = col_data.empty_same_layout();
+            let new_col = col_data.empty_same_layout();
             result_columns.insert(col_name.clone(), new_col);
         }
 
         for (col_name, col_data) in &right.columns {
             if !result_columns.contains_key(col_name) {
-                let mut new_col = col_data.empty_same_layout();
+                let new_col = col_data.empty_same_layout();
                 result_columns.insert(col_name.clone(), new_col);
             }
         }

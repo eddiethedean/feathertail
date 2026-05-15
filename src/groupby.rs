@@ -1,8 +1,8 @@
+use crate::frame::{TinyColumn, TinyFrame};
+use crate::utils::total_cmp_f64;
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 use std::collections::HashMap;
-use crate::frame::{TinyColumn, TinyFrame};
-use crate::utils::total_cmp_f64;
 
 #[pyclass]
 pub struct TinyGroupBy {
@@ -20,7 +20,10 @@ impl TinyGroupBy {
 
         for key in &keys {
             let col = frame.columns.get(key).ok_or_else(|| {
-                PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Key column '{}' not found", key))
+                PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                    "Key column '{}' not found",
+                    key
+                ))
             })?;
 
             // For now, only string columns can be used as keys
@@ -99,7 +102,9 @@ impl TinyGroupBy {
         for (key_vec, val) in &self.groups {
             let py_key = PyTuple::new(
                 py,
-                key_vec.iter().map(|v| v.clone().map_or(py.None(), |s| s.into_py(py))),
+                key_vec
+                    .iter()
+                    .map(|v| v.clone().map_or(py.None(), |s| s.into_py(py))),
             );
             dict.set_item(py_key, val)?;
         }
@@ -135,9 +140,17 @@ impl TinyGroupBy {
     }
 
     // Helper method for column-specific aggregations
-    fn aggregate_column(&self, frame: &TinyFrame, column_name: String, agg_type: &str) -> PyResult<TinyFrame> {
+    fn aggregate_column(
+        &self,
+        frame: &TinyFrame,
+        column_name: String,
+        agg_type: &str,
+    ) -> PyResult<TinyFrame> {
         let column = frame.columns.get(&column_name).ok_or_else(|| {
-            PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column_name))
+            PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                "Column '{}' not found",
+                column_name
+            ))
         })?;
 
         let mut columns: HashMap<String, TinyColumn> = HashMap::new();
@@ -159,9 +172,12 @@ impl TinyGroupBy {
                 "median" => self.calculate_median(column, row_indices),
                 "first" => self.calculate_first(column, row_indices),
                 "last" => self.calculate_last(column, row_indices),
-                _ => return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                    format!("Unknown aggregation type: {}", agg_type)
-                )),
+                _ => {
+                    return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                        "Unknown aggregation type: {}",
+                        agg_type
+                    )))
+                }
             };
 
             agg_values.push(agg_value);
@@ -170,7 +186,10 @@ impl TinyGroupBy {
         for (i, key_name) in self.keys.iter().enumerate() {
             columns.insert(key_name.clone(), TinyColumn::OptStr(key_columns[i].clone()));
         }
-        columns.insert(format!("{}_{}", column_name, agg_type), TinyColumn::OptFloat(agg_values));
+        columns.insert(
+            format!("{}_{}", column_name, agg_type),
+            TinyColumn::OptFloat(agg_values),
+        );
 
         Ok(TinyFrame {
             columns,
@@ -178,7 +197,6 @@ impl TinyGroupBy {
             py_objects: frame.py_objects.clone(),
         })
     }
-
 }
 
 impl TinyGroupBy {
@@ -243,16 +261,18 @@ impl TinyGroupBy {
                 let min_val = row_indices.iter().map(|&i| v[i]).min()?;
                 Some(min_val as f64)
             }
-            TinyColumn::Float(v) => {
-                row_indices.iter().map(|&i| v[i]).min_by(|a, b| total_cmp_f64(a, b))
-            }
+            TinyColumn::Float(v) => row_indices
+                .iter()
+                .map(|&i| v[i])
+                .min_by(|a, b| total_cmp_f64(a, b)),
             TinyColumn::OptInt(v) => {
                 let min_val = row_indices.iter().filter_map(|&i| v[i]).min()?;
                 Some(min_val as f64)
             }
-            TinyColumn::OptFloat(v) => {
-                row_indices.iter().filter_map(|&i| v[i]).min_by(|a, b| total_cmp_f64(a, b))
-            }
+            TinyColumn::OptFloat(v) => row_indices
+                .iter()
+                .filter_map(|&i| v[i])
+                .min_by(|a, b| total_cmp_f64(a, b)),
             _ => None,
         }
     }
@@ -263,16 +283,18 @@ impl TinyGroupBy {
                 let max_val = row_indices.iter().map(|&i| v[i]).max()?;
                 Some(max_val as f64)
             }
-            TinyColumn::Float(v) => {
-                row_indices.iter().map(|&i| v[i]).max_by(|a, b| total_cmp_f64(a, b))
-            }
+            TinyColumn::Float(v) => row_indices
+                .iter()
+                .map(|&i| v[i])
+                .max_by(|a, b| total_cmp_f64(a, b)),
             TinyColumn::OptInt(v) => {
                 let max_val = row_indices.iter().filter_map(|&i| v[i]).max()?;
                 Some(max_val as f64)
             }
-            TinyColumn::OptFloat(v) => {
-                row_indices.iter().filter_map(|&i| v[i]).max_by(|a, b| total_cmp_f64(a, b))
-            }
+            TinyColumn::OptFloat(v) => row_indices
+                .iter()
+                .filter_map(|&i| v[i])
+                .max_by(|a, b| total_cmp_f64(a, b)),
             _ => None,
         }
     }
@@ -288,11 +310,20 @@ impl TinyGroupBy {
         self.calculate_variance_with_mean(column, row_indices, mean)
     }
 
-    fn calculate_variance_with_mean(&self, column: &TinyColumn, row_indices: &[usize], mean: f64) -> Option<f64> {
+    fn calculate_variance_with_mean(
+        &self,
+        column: &TinyColumn,
+        row_indices: &[usize],
+        mean: f64,
+    ) -> Option<f64> {
         let values: Vec<f64> = match column {
             TinyColumn::Int(v) => row_indices.iter().map(|&i| v[i] as f64).collect(),
             TinyColumn::Float(v) => row_indices.iter().map(|&i| v[i]).collect(),
-            TinyColumn::OptInt(v) => row_indices.iter().filter_map(|&i| v[i]).map(|x| x as f64).collect(),
+            TinyColumn::OptInt(v) => row_indices
+                .iter()
+                .filter_map(|&i| v[i])
+                .map(|x| x as f64)
+                .collect(),
             TinyColumn::OptFloat(v) => row_indices.iter().filter_map(|&i| v[i]).collect(),
             _ => return None,
         };
@@ -301,9 +332,8 @@ impl TinyGroupBy {
             return None;
         }
 
-        let variance = values.iter()
-            .map(|&x| (x - mean).powi(2))
-            .sum::<f64>() / values.len() as f64;
+        let variance =
+            values.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / values.len() as f64;
         Some(variance)
     }
 
@@ -311,7 +341,11 @@ impl TinyGroupBy {
         let mut values: Vec<f64> = match column {
             TinyColumn::Int(v) => row_indices.iter().map(|&i| v[i] as f64).collect(),
             TinyColumn::Float(v) => row_indices.iter().map(|&i| v[i]).collect(),
-            TinyColumn::OptInt(v) => row_indices.iter().filter_map(|&i| v[i]).map(|x| x as f64).collect(),
+            TinyColumn::OptInt(v) => row_indices
+                .iter()
+                .filter_map(|&i| v[i])
+                .map(|x| x as f64)
+                .collect(),
             TinyColumn::OptFloat(v) => row_indices.iter().filter_map(|&i| v[i]).collect(),
             _ => return None,
         };

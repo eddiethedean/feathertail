@@ -1,6 +1,6 @@
+use crate::frame::{TinyColumn, TinyFrame};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use crate::frame::{TinyColumn, TinyFrame, ValueEnum};
 
 #[pyclass]
 pub struct TinyFrameRowIter {
@@ -38,7 +38,9 @@ impl TinyFrameRowIter {
                     TinyColumn::Bool(v) => v[slf.index].into_py(py),
                     TinyColumn::OptInt(v) => v[slf.index].map_or(py.None(), |x| x.into_py(py)),
                     TinyColumn::OptFloat(v) => v[slf.index].map_or(py.None(), |x| x.into_py(py)),
-                    TinyColumn::OptStr(v) => v[slf.index].clone().map_or(py.None(), |x| x.into_py(py)),
+                    TinyColumn::OptStr(v) => {
+                        v[slf.index].clone().map_or(py.None(), |x| x.into_py(py))
+                    }
                     TinyColumn::OptBool(v) => v[slf.index].map_or(py.None(), |x| x.into_py(py)),
                     TinyColumn::Mixed(v) => v[slf.index].to_py(py, &frame_ref.py_objects),
                     TinyColumn::OptMixed(v) => v[slf.index]
@@ -48,11 +50,9 @@ impl TinyFrameRowIter {
                         let obj = frame_ref.py_objects.get(&v[slf.index]);
                         obj.map_or(py.None(), |o| o.clone_ref(py))
                     }
-                    TinyColumn::OptPyObject(v) => {
-                        v[slf.index]
-                            .and_then(|id| frame_ref.py_objects.get(&id).map(|o| o.clone_ref(py)))
-                            .unwrap_or_else(|| py.None())
-                    }
+                    TinyColumn::OptPyObject(v) => v[slf.index]
+                        .and_then(|id| frame_ref.py_objects.get(&id).map(|o| o.clone_ref(py)))
+                        .unwrap_or_else(|| py.None()),
                 };
 
                 row_dict.set_item(col_name, val).unwrap();

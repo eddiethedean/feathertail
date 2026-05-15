@@ -1,7 +1,7 @@
+use crate::frame::optimize::FilterCondition;
+use crate::frame::TinyFrame;
 use pyo3::prelude::*;
 use std::sync::Arc;
-use crate::frame::{TinyFrame, TinyColumn};
-use crate::frame::optimize::FilterCondition;
 
 // Lazy operation trait
 pub trait LazyOperation: Send + Sync {
@@ -27,7 +27,10 @@ impl LazyOperation for LazyFilter {
     }
 
     fn description(&self) -> String {
-        format!("Filter({} {})", self.condition.column, self.condition.condition)
+        format!(
+            "Filter({} {})",
+            self.condition.column, self.condition.condition
+        )
     }
 
     fn memory_usage(&self) -> usize {
@@ -63,7 +66,9 @@ impl LazyOperation for LazySort {
     }
 
     fn description(&self) -> String {
-        let key_descriptions: Vec<String> = self.keys.iter()
+        let key_descriptions: Vec<String> = self
+            .keys
+            .iter()
             .map(|k| format!("{}({})", k.column, if k.ascending { "asc" } else { "desc" }))
             .collect();
         format!("Sort({})", key_descriptions.join(", "))
@@ -113,14 +118,15 @@ impl LazySelect {
 impl LazyOperation for LazySelect {
     fn execute(&self, frame: &TinyFrame) -> PyResult<TinyFrame> {
         let mut new_columns = std::collections::HashMap::new();
-        
+
         for col_name in &self.columns {
             if let Some(col_data) = frame.columns.get(col_name) {
                 new_columns.insert(col_name.clone(), col_data.clone());
             } else {
-                return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(
-                    format!("Column '{}' not found", col_name)
-                ));
+                return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                    "Column '{}' not found",
+                    col_name
+                )));
             }
         }
 
@@ -176,11 +182,11 @@ impl LazyFrame {
 
     pub fn collect(self) -> PyResult<TinyFrame> {
         let mut current = self.source.as_ref().clone();
-        
+
         for operation in self.operations {
             current = operation.execute(&current)?;
         }
-        
+
         Ok(current)
     }
 
@@ -193,7 +199,12 @@ impl LazyFrame {
     }
 
     pub fn memory_usage(&self) -> usize {
-        let source_memory = self.source.columns.values().map(|col| col.len()).sum::<usize>();
+        let source_memory = self
+            .source
+            .columns
+            .values()
+            .map(|col| col.len())
+            .sum::<usize>();
         let operations_memory: usize = self.operations.iter().map(|op| op.memory_usage()).sum();
         source_memory + operations_memory
     }

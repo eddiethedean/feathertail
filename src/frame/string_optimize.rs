@@ -58,12 +58,12 @@ impl StringPool {
     pub fn memory_usage(&self) -> usize {
         let strings = self.strings.read().unwrap();
         let reverse = self.reverse.read().unwrap();
-        
+
         // Estimate memory usage
         let string_memory: usize = strings.keys().map(|s| s.len()).sum();
         let id_memory = strings.len() * 4; // u32 = 4 bytes
         let reverse_memory: usize = reverse.values().map(|s| s.len()).sum();
-        
+
         string_memory + id_memory + reverse_memory
     }
 }
@@ -101,7 +101,7 @@ impl OptimizedStrColumn {
         self.ids.len() * 4 + self.pool.memory_usage()
     }
 
-    pub fn iter(&self) -> OptimizedStrColumnIter {
+    pub fn iter(&self) -> OptimizedStrColumnIter<'_> {
         OptimizedStrColumnIter {
             column: self,
             index: 0,
@@ -109,7 +109,8 @@ impl OptimizedStrColumn {
     }
 
     pub fn to_regular_strings(&self) -> Vec<String> {
-        self.ids.iter()
+        self.ids
+            .iter()
             .filter_map(|&id| self.pool.get(id))
             .collect()
     }
@@ -147,21 +148,17 @@ impl StringDeduplicator {
     }
 
     pub fn deduplicate_strings(&self, strings: &[String]) -> Vec<u32> {
-        strings.iter()
-            .map(|s| self.pool.intern(s))
-            .collect()
+        strings.iter().map(|s| self.pool.intern(s)).collect()
     }
 
     pub fn restore_strings(&self, ids: &[u32]) -> Vec<String> {
-        ids.iter()
-            .filter_map(|&id| self.pool.get(id))
-            .collect()
+        ids.iter().filter_map(|&id| self.pool.get(id)).collect()
     }
 
     pub fn memory_savings(&self, original_strings: &[String]) -> usize {
         let original_memory: usize = original_strings.iter().map(|s| s.len()).sum();
         let deduplicated_memory = self.pool.memory_usage();
-        
+
         if original_memory > deduplicated_memory {
             original_memory - deduplicated_memory
         } else {
@@ -188,9 +185,7 @@ impl StringCompressor {
     }
 
     pub fn compress_strings(&mut self, strings: &[String]) -> Vec<u16> {
-        strings.iter()
-            .map(|s| self.compress_string(s))
-            .collect()
+        strings.iter().map(|s| self.compress_string(s)).collect()
     }
 
     fn compress_string(&mut self, s: &str) -> u16 {
@@ -206,7 +201,8 @@ impl StringCompressor {
     }
 
     pub fn decompress_strings(&self, codes: &[u16]) -> Vec<String> {
-        codes.iter()
+        codes
+            .iter()
             .filter_map(|&code| self.reverse_dict.get(&code).cloned())
             .collect()
     }
@@ -254,20 +250,14 @@ impl StringOps {
 
     // Batch operations for efficiency
     pub fn batch_upper_case(&self, strings: &[String]) -> Vec<String> {
-        strings.iter()
-            .map(|s| self.upper_case(s))
-            .collect()
+        strings.iter().map(|s| self.upper_case(s)).collect()
     }
 
     pub fn batch_lower_case(&self, strings: &[String]) -> Vec<String> {
-        strings.iter()
-            .map(|s| self.lower_case(s))
-            .collect()
+        strings.iter().map(|s| self.lower_case(s)).collect()
     }
 
     pub fn batch_contains(&self, strings: &[String], needle: &str) -> Vec<bool> {
-        strings.iter()
-            .map(|s| self.contains(s, needle))
-            .collect()
+        strings.iter().map(|s| self.contains(s, needle)).collect()
     }
 }

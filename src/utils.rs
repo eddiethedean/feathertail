@@ -1,7 +1,7 @@
+use crate::frame::ValueEnum;
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyFloat, PyLong, PyString};
 use pyo3::PyTypeInfo; // <---- this is the key fix!
-use crate::frame::ValueEnum;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
@@ -12,7 +12,10 @@ pub fn total_cmp_f64(a: &f64, b: &f64) -> Ordering {
     a.total_cmp(b)
 }
 
-pub fn convert_pyobject_to_valueenum(py_value: &PyAny, py_objects: &mut HashMap<u64, PyObject>) -> PyResult<ValueEnum> {
+pub fn convert_pyobject_to_valueenum(
+    py_value: &PyAny,
+    py_objects: &mut HashMap<u64, PyObject>,
+) -> PyResult<ValueEnum> {
     if py_value.is_instance(PyBool::type_object(py_value.py()))? {
         Ok(ValueEnum::Bool(py_value.extract()?))
     } else if py_value.is_instance(PyLong::type_object(py_value.py()))? {
@@ -28,7 +31,10 @@ pub fn convert_pyobject_to_valueenum(py_value: &PyAny, py_objects: &mut HashMap<
     }
 }
 
-pub fn pyobject_to_option_valueenum(py_value: &PyAny, py_objects: &mut HashMap<u64, PyObject>) -> PyResult<Option<ValueEnum>> {
+pub fn pyobject_to_option_valueenum(
+    py_value: &PyAny,
+    py_objects: &mut HashMap<u64, PyObject>,
+) -> PyResult<Option<ValueEnum>> {
     if py_value.is_none() {
         Ok(None)
     } else {
@@ -40,7 +46,11 @@ pub fn empty_like_column(col: &crate::frame::TinyColumn) -> crate::frame::TinyCo
     col.empty_same_layout()
 }
 
-pub fn append_value(col: &mut crate::frame::TinyColumn, idx: usize, src: &crate::frame::TinyColumn) {
+pub fn append_value(
+    col: &mut crate::frame::TinyColumn,
+    idx: usize,
+    src: &crate::frame::TinyColumn,
+) {
     if col.append_row_strict(src, idx).is_err() {
         panic!("Column type mismatch in append_value");
     }

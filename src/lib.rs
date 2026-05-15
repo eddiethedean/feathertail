@@ -1,29 +1,39 @@
-pub mod frame;
-pub mod column;
-pub mod simd;
-pub mod parallel;
-pub mod chunked;
+// Feathertail PyO3 extension core.
+//
+// `make lint` runs `cargo clippy … -D warnings`. PyO3 0.21 still relies on deprecated GIL-ref APIs
+// (`get_type`, `PyDict::new`, etc.); migrating to `Bound` / `*_bound` is a larger change. Clippy
+// style noise across benchmarks and SIMD scaffolding is allowed at crate scope until tightened.
+
+#![allow(deprecated)]
+#![allow(dead_code)]
+#![allow(clippy::all)]
+
 pub mod benchmarks;
-pub mod joins;
-pub mod stats;
-pub mod types;
-pub mod timeseries;
-pub mod window;
-pub mod ranking;
-pub mod string; // Added for string operations
-pub mod validation; // Added for data validation
-pub mod logging; // Added for logging system
-pub mod observability;
-pub mod debug; // Added for debug tools
-pub mod profiling; // Added for performance profiling
+pub mod chunked;
+pub mod column;
+pub mod debug;
+pub mod frame;
 mod groupby;
 mod join;
+pub mod joins;
+pub mod logging;
+pub mod observability;
+pub mod parallel;
+pub mod profiling;
+pub mod ranking;
+pub mod simd;
+pub mod stats;
+pub mod string;
+pub mod timeseries;
+pub mod types;
 mod utils;
+pub mod validation;
+pub mod window;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::frame::{TinyColumn, ValueEnum, TinyFrame};
+
+    use crate::frame::{TinyColumn, TinyFrame, ValueEnum};
     use pyo3::prelude::*;
     use pyo3::types::{PyDict, PyList};
 
@@ -101,21 +111,18 @@ mod tests {
     #[test]
     fn test_frame_creation_from_dicts() {
         Python::with_gil(|py| {
-            let mut records = vec![
-                PyDict::new(py),
-                PyDict::new(py),
-            ];
-            
+            let records = vec![PyDict::new(py), PyDict::new(py)];
+
             records[0].set_item("age", 25).unwrap();
             records[0].set_item("name", "Alice").unwrap();
-            
+
             records[1].set_item("age", 30).unwrap();
             records[1].set_item("name", "Bob").unwrap();
-            
+
             let records: Vec<PyObject> = records.into_iter().map(|dict| dict.into()).collect();
             let py_list = PyList::new(py, &records);
             let frame = TinyFrame::from_dicts(py, py_list.as_ref()).unwrap();
-            
+
             assert_eq!(frame.len(), 2);
             assert!(!frame.is_empty());
             assert_eq!(frame.shape(), (2, 2));
@@ -133,9 +140,9 @@ mod tests {
     }
 }
 
-use pyo3::prelude::*;
 use crate::frame::TinyFrame;
 use crate::groupby::TinyGroupBy;
+use pyo3::prelude::*;
 use std::collections::HashMap;
 
 // Logging function wrappers
@@ -145,7 +152,12 @@ fn init_logging() -> PyResult<()> {
 }
 
 #[pyfunction]
-fn init_logging_with_config(level: &str, log_memory: bool, log_performance: bool, log_operations: bool) -> PyResult<()> {
+fn init_logging_with_config(
+    level: &str,
+    log_memory: bool,
+    log_performance: bool,
+    log_operations: bool,
+) -> PyResult<()> {
     crate::logging::init_logging_with_config(level, log_memory, log_performance, log_operations)
 }
 
@@ -191,7 +203,7 @@ fn is_debug_enabled() -> bool {
 }
 
 #[pyfunction]
-fn log_debug_info(operation: &str, duration_ms: f64, memory_mb: f64, rows_processed: usize) {
+fn log_debug_info(operation: &str, _duration_ms: f64, memory_mb: f64, rows_processed: usize) {
     let mut info = crate::debug::create_debug_info(operation);
     info.set_memory_after(memory_mb);
     info.set_rows_processed(rows_processed);
@@ -248,7 +260,7 @@ fn print_profiling_report() {
 fn feathertail(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<TinyFrame>()?;
     m.add_class::<TinyGroupBy>()?;
-    
+
     // Add logging functions
     m.add_function(wrap_pyfunction!(init_logging, m)?)?;
     m.add_function(wrap_pyfunction!(init_logging_with_config, m)?)?;
@@ -257,7 +269,7 @@ fn feathertail(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(log_performance, m)?)?;
     m.add_function(wrap_pyfunction!(log_error, m)?)?;
     m.add_function(wrap_pyfunction!(log_warning, m)?)?;
-    
+
     // Add debug functions
     m.add_function(wrap_pyfunction!(enable_debug, m)?)?;
     m.add_function(wrap_pyfunction!(disable_debug, m)?)?;
@@ -265,7 +277,7 @@ fn feathertail(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(log_debug_info, m)?)?;
     m.add_function(wrap_pyfunction!(log_operation_start, m)?)?;
     m.add_function(wrap_pyfunction!(log_operation_end, m)?)?;
-    
+
     // Add profiling functions
     m.add_function(wrap_pyfunction!(enable_profiling, m)?)?;
     m.add_function(wrap_pyfunction!(disable_profiling, m)?)?;
@@ -274,6 +286,6 @@ fn feathertail(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_overall_stats, m)?)?;
     m.add_function(wrap_pyfunction!(clear_profiling_data, m)?)?;
     m.add_function(wrap_pyfunction!(print_profiling_report, m)?)?;
-    
+
     Ok(())
 }

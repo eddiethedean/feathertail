@@ -1,7 +1,7 @@
 //! Typed column storage for `TinyFrame` (`TinyColumn`).
 
-use pyo3::prelude::*;
 use super::value::ValueEnum;
+use pyo3::prelude::*;
 
 #[derive(Clone)]
 pub enum TinyColumn {
@@ -281,14 +281,26 @@ impl TinyColumn {
             TinyColumn::Float(v) => TinyColumn::Float(indices.iter().map(|&i| v[i]).collect()),
             TinyColumn::Str(v) => TinyColumn::Str(indices.iter().map(|&i| v[i].clone()).collect()),
             TinyColumn::Bool(v) => TinyColumn::Bool(indices.iter().map(|&i| v[i]).collect()),
-            TinyColumn::PyObject(v) => TinyColumn::PyObject(indices.iter().map(|&i| v[i]).collect()),
-            TinyColumn::Mixed(v) => TinyColumn::Mixed(indices.iter().map(|&i| v[i].clone()).collect()),
+            TinyColumn::PyObject(v) => {
+                TinyColumn::PyObject(indices.iter().map(|&i| v[i]).collect())
+            }
+            TinyColumn::Mixed(v) => {
+                TinyColumn::Mixed(indices.iter().map(|&i| v[i].clone()).collect())
+            }
             TinyColumn::OptInt(v) => TinyColumn::OptInt(indices.iter().map(|&i| v[i]).collect()),
-            TinyColumn::OptFloat(v) => TinyColumn::OptFloat(indices.iter().map(|&i| v[i]).collect()),
-            TinyColumn::OptStr(v) => TinyColumn::OptStr(indices.iter().map(|&i| v[i].clone()).collect()),
+            TinyColumn::OptFloat(v) => {
+                TinyColumn::OptFloat(indices.iter().map(|&i| v[i]).collect())
+            }
+            TinyColumn::OptStr(v) => {
+                TinyColumn::OptStr(indices.iter().map(|&i| v[i].clone()).collect())
+            }
             TinyColumn::OptBool(v) => TinyColumn::OptBool(indices.iter().map(|&i| v[i]).collect()),
-            TinyColumn::OptPyObject(v) => TinyColumn::OptPyObject(indices.iter().map(|&i| v[i]).collect()),
-            TinyColumn::OptMixed(v) => TinyColumn::OptMixed(indices.iter().map(|&i| v[i].clone()).collect()),
+            TinyColumn::OptPyObject(v) => {
+                TinyColumn::OptPyObject(indices.iter().map(|&i| v[i]).collect())
+            }
+            TinyColumn::OptMixed(v) => {
+                TinyColumn::OptMixed(indices.iter().map(|&i| v[i].clone()).collect())
+            }
         }
     }
 }
