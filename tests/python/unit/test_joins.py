@@ -1,5 +1,4 @@
 import pytest
-import feathertail as ft
 from feathertail import TinyFrame
 
 
@@ -93,16 +92,61 @@ class TestJoinOperations:
         assert "David" in names
         assert "Sales" in dept_names
 
-    def test_cross_join(self, left_frame, right_frame):
-        """Test cross join operation."""
-        result = left_frame.cross_join(right_frame)
-        
-        # Cross join should have 4 * 3 = 12 rows
+    def test_cross_join(self):
+        """Cross join Cartesian product requires disjoint column names (HashMap output)."""
+        left = TinyFrame.from_dicts([{"a": i} for i in range(4)])
+        right = TinyFrame.from_dicts([{"b": j} for j in range(3)])
+        result = left.cross_join(right)
+
         assert result.len() == 12
-        assert "id" in result.columns
-        assert "name" in result.columns
-        assert "dept_id" in result.columns
-        assert "dept_name" in result.columns
+        assert "a" in result.columns
+        assert "b" in result.columns
+
+    def test_join_multiple_columns_skips_row_when_any_key_component_null(self):
+        """Null in any composite-key column excludes the row (SQL-style semantics)."""
+        left_data = [
+            {"dept_id": 10, "loc": None, "name": "Bob"},
+            {"dept_id": 10, "loc": "NYC", "name": "Ann"},
+        ]
+        right_data = [
+            {"dept_id": 10, "loc": "NYC", "info": "matched"},
+        ]
+        left = TinyFrame.from_dicts(left_data)
+        right = TinyFrame.from_dicts(right_data)
+        result = left.inner_join(right, ["dept_id", "loc"], ["dept_id", "loc"])
+        assert result.len() == 1
+        rows = list(result)
+        assert rows[0]["name"] == "Ann"
+        assert rows[0]["info"] == "matched"
+
+    def test_join_rejects_duplicate_nonkey_basename(self):
+        """Same non-join column name on both sides must be renamed (HashMap output)."""
+        left = TinyFrame.from_dicts([{"id": 1, "note": "left"}])
+        right = TinyFrame.from_dicts([{"id": 1, "note": "right"}])
+        with pytest.raises(ValueError, match="duplicate output column"):
+            left.inner_join(right, ["id"], ["id"])
+
+    def test_join_rejects_right_nonkey_same_name_as_left_join_key(self):
+        """Right-side data column must not reuse a left join-key basename."""
+        left = TinyFrame.from_dicts([{"id": 1, "x": 1}])
+        right = TinyFrame.from_dicts([{"uid": 1, "id": 99}])
+        with pytest.raises(ValueError, match="duplicate output column"):
+            left.inner_join(right, ["id"], ["uid"])
+
+    def test_cross_join_rejects_duplicate_column_name(self):
+        a = TinyFrame.from_dicts([{"k": 1}])
+        b = TinyFrame.from_dicts([{"k": 2}])
+        with pytest.raises(ValueError, match="cross_join"):
+            a.cross_join(b)
+
+    def test_inner_join_merges_py_objects_from_both_frames(self):
+        marker = object()
+        left = TinyFrame.from_dicts([{"id": 1, "a": 1}])
+        right = TinyFrame.from_dicts([{"id": 1, "obj": marker}])
+        result = left.inner_join(right, ["id"], ["id"])
+        rows = list(result)
+        assert len(rows) == 1
+        assert rows[0]["obj"] is marker
 
     def test_join_multiple_columns(self, left_frame):
         """Test join on multiple columns."""

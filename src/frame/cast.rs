@@ -2,6 +2,42 @@ use crate::frame::{TinyFrame, TinyColumn};
 use pyo3::prelude::*;
 use pyo3::types::{PyInt, PyFloat, PyString, PyBool};
 
+fn str_vec_to_i64(vec: &[String]) -> PyResult<Vec<i64>> {
+    let mut out = Vec::with_capacity(vec.len());
+    for s in vec {
+        match s.parse::<i64>() {
+            Ok(v) => out.push(v),
+            Err(_) => {
+                let preview: String = s.chars().take(64).collect();
+                let ellipses = if s.chars().count() > 64 { "..." } else { "" };
+                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "cannot parse string as int: {}{}",
+                    preview, ellipses
+                )));
+            }
+        }
+    }
+    Ok(out)
+}
+
+fn str_vec_to_f64(vec: &[String]) -> PyResult<Vec<f64>> {
+    let mut out = Vec::with_capacity(vec.len());
+    for s in vec {
+        match s.parse::<f64>() {
+            Ok(v) => out.push(v),
+            Err(_) => {
+                let preview: String = s.chars().take(64).collect();
+                let ellipses = if s.chars().count() > 64 { "..." } else { "" };
+                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "cannot parse string as float: {}{}",
+                    preview, ellipses
+                )));
+            }
+        }
+    }
+    Ok(out)
+}
+
 pub fn cast_column_impl(frame: &mut TinyFrame, py: Python, column_name: String, new_type: &PyAny) -> PyResult<()> {
     let col = frame.columns.get_mut(&column_name).ok_or_else(|| {
         PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", column_name))
@@ -61,9 +97,9 @@ pub fn cast_column_impl(frame: &mut TinyFrame, py: Python, column_name: String, 
         }
         TinyColumn::Str(vec) => {
             if is_int {
-                TinyColumn::Int(vec.iter().map(|s| s.parse::<i64>().unwrap_or(0)).collect())
+                TinyColumn::Int(str_vec_to_i64(vec)?)
             } else if is_float {
-                TinyColumn::Float(vec.iter().map(|s| s.parse::<f64>().unwrap_or(0.0)).collect())
+                TinyColumn::Float(str_vec_to_f64(vec)?)
             } else if is_bool {
                 TinyColumn::Bool(vec.iter().map(|s| !s.is_empty()).collect())
             } else if is_str {

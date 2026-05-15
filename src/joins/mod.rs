@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use pyo3::prelude::*;
 use crate::frame::{TinyFrame, TinyColumn, ValueEnum};
 
@@ -85,6 +85,8 @@ impl JoinOps {
             ));
         }
 
+        Self::validate_keyed_join_output_columns(left, right, &left_on, &right_on)?;
+
         // Build hash maps for efficient lookups
         let left_keys = Self::build_key_map(left, &left_on)?;
         let right_keys = Self::build_key_map(right, &right_on)?;
@@ -98,19 +100,97 @@ impl JoinOps {
         }
     }
 
+    /// Enforce distinct output identifiers: keyed joins build a [`HashMap`] of columns, so basename
+    /// collisions (outside the intended shared join-key names) corrupt row assembly.
+    fn validate_keyed_join_output_columns(left: &TinyFrame, right: &TinyFrame, left_on: &[String], right_on: &[String]) -> PyResult<()> {
+        let left_on_s: HashSet<&str> = left_on.iter().map(|s| s.as_str()).collect();
+        let right_on_s: HashSet<&str> = right_on.iter().map(|s| s.as_str()).collect();
+        let left_non_join: HashSet<&str> = left
+            .columns
+            .keys()
+            .map(|s| s.as_str())
+            .filter(|name| !left_on_s.contains(name))
+            .collect();
+        let right_non_join: HashSet<&str> = right
+            .columns
+            .keys()
+            .map(|s| s.as_str())
+            .filter(|name| !right_on_s.contains(name))
+            .collect();
+
+        let mut conflicts: Vec<&str> = left_non_join
+            .intersection(&right_non_join)
+            .copied()
+            .collect();
+
+        conflicts.extend(left_on_s.intersection(&right_non_join).copied());
+        conflicts.extend(right_on_s.intersection(&left_non_join).copied());
+
+        conflicts.sort_unstable();
+        conflicts.dedup();
+        if !conflicts.is_empty() {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "join: duplicate output column basename(s): [{}]; rename on one side (left_on='{}', right_on='{}')",
+                conflicts.join(", "),
+                left_on.join(", "),
+                right_on.join(", ")
+            )));
+        }
+        Ok(())
+    }
+
+    fn validate_cross_join_columns(left: &TinyFrame, right: &TinyFrame) -> PyResult<()> {
+        let left_names: HashSet<&str> = left.columns.keys().map(|k| k.as_str()).collect();
+        for rk in right.columns.keys() {
+            if left_names.contains(rk.as_str()) {
+                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "cross_join: duplicate column name '{}'; rename one side before joining",
+                    rk
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    /// Merge Python object fallback maps for join results. Detects incompatible identity reuse.
+    fn merge_py_object_maps(
+        left_m: &HashMap<u64, PyObject>,
+        right_m: &HashMap<u64, PyObject>,
+    ) -> PyResult<HashMap<u64, PyObject>> {
+        let mut out = left_m.clone();
+        for (&id, ro) in right_m {
+            if let Some(lo) = out.get(&id) {
+                if lo.as_ptr() != ro.as_ptr() {
+                    return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                        "join: PyObjectId {} maps to differing objects on left and right; cannot merge safely",
+                        id
+                    )));
+                }
+            } else {
+                out.insert(id, ro.clone());
+            }
+        }
+        Ok(out)
+    }
+
     // Build a hash map of keys to row indices
     fn build_key_map(frame: &TinyFrame, columns: &[String]) -> PyResult<HashMap<Vec<ValueEnum>, Vec<usize>>> {
         let mut key_map: HashMap<Vec<ValueEnum>, Vec<usize>> = HashMap::new();
 
-        for row_idx in 0..frame.length {
-            let mut key = Vec::new();
+        let n_key_cols = columns.len();
+        if n_key_cols == 0 {
+            return Ok(key_map);
+        }
+
+        'row: for row_idx in 0..frame.length {
+            let mut key = Vec::with_capacity(n_key_cols);
             for col_name in columns {
                 let col = frame.columns.get(col_name).unwrap();
-                if let Some(value) = Self::get_value_at_index(col, row_idx) {
-                    key.push(value);
-                } else {
-                    // Skip rows with null values in join columns
-                    continue;
+                match Self::get_value_at_index(col, row_idx) {
+                    Some(value) => key.push(value),
+                    None => {
+                        continue 'row;
+                    }
                 }
             }
             key_map.entry(key).or_insert_with(Vec::new).push(row_idx);
@@ -218,7 +298,7 @@ impl JoinOps {
         Ok(TinyFrame {
             columns: result_columns,
             length: result_length,
-            py_objects: left.py_objects.clone(),
+            py_objects: Self::merge_py_object_maps(&left.py_objects, &right.py_objects)?,
         })
     }
 
@@ -307,7 +387,7 @@ impl JoinOps {
         Ok(TinyFrame {
             columns: result_columns,
             length: result_length,
-            py_objects: left.py_objects.clone(),
+            py_objects: Self::merge_py_object_maps(&left.py_objects, &right.py_objects)?,
         })
     }
 
@@ -396,7 +476,7 @@ impl JoinOps {
         Ok(TinyFrame {
             columns: result_columns,
             length: result_length,
-            py_objects: right.py_objects.clone(),
+            py_objects: Self::merge_py_object_maps(&left.py_objects, &right.py_objects)?,
         })
     }
 
@@ -518,7 +598,7 @@ impl JoinOps {
         Ok(TinyFrame {
             columns: result_columns,
             length: result_length,
-            py_objects: left.py_objects.clone(),
+            py_objects: Self::merge_py_object_maps(&left.py_objects, &right.py_objects)?,
         })
     }
 
@@ -713,6 +793,8 @@ impl JoinOps {
 // Cross join implementation
 impl JoinOps {
     pub fn cross_join(left: &TinyFrame, right: &TinyFrame) -> PyResult<TinyFrame> {
+        Self::validate_cross_join_columns(left, right)?;
+
         let mut result_columns: HashMap<String, TinyColumn> = HashMap::new();
         let mut result_length = 0;
 
@@ -757,7 +839,7 @@ impl JoinOps {
         Ok(TinyFrame {
             columns: result_columns,
             length: result_length,
-            py_objects: left.py_objects.clone(),
+            py_objects: Self::merge_py_object_maps(&left.py_objects, &right.py_objects)?,
         })
     }
 }

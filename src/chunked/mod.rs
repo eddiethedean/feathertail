@@ -359,9 +359,158 @@ impl ChunkedProcessor {
                 }
                 Ok(TinyColumn::Bool(merged))
             },
-            _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                "Unsupported column type for chunk merging"
-            )),
+            TinyColumn::OptInt(_) => {
+                let mut merged = Vec::new();
+                for chunk in chunks {
+                    let col = chunk.columns.get(col_name).ok_or_else(|| {
+                        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                            "Column '{}' not found in chunk during merge",
+                            col_name
+                        ))
+                    })?;
+                    match col {
+                        TinyColumn::OptInt(v) => merged.extend_from_slice(v),
+                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                            "Column '{}' has inconsistent type across chunks",
+                            col_name
+                        ))),
+                    }
+                }
+                Ok(TinyColumn::OptInt(merged))
+            },
+            TinyColumn::OptFloat(_) => {
+                let mut merged = Vec::new();
+                for chunk in chunks {
+                    let col = chunk.columns.get(col_name).ok_or_else(|| {
+                        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                            "Column '{}' not found in chunk during merge",
+                            col_name
+                        ))
+                    })?;
+                    match col {
+                        TinyColumn::OptFloat(v) => merged.extend_from_slice(v),
+                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                            "Column '{}' has inconsistent type across chunks",
+                            col_name
+                        ))),
+                    }
+                }
+                Ok(TinyColumn::OptFloat(merged))
+            },
+            TinyColumn::OptStr(_) => {
+                let mut merged = Vec::new();
+                for chunk in chunks {
+                    let col = chunk.columns.get(col_name).ok_or_else(|| {
+                        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                            "Column '{}' not found in chunk during merge",
+                            col_name
+                        ))
+                    })?;
+                    match col {
+                        TinyColumn::OptStr(v) => merged.extend(v.iter().cloned()),
+                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                            "Column '{}' has inconsistent type across chunks",
+                            col_name
+                        ))),
+                    }
+                }
+                Ok(TinyColumn::OptStr(merged))
+            },
+            TinyColumn::OptBool(_) => {
+                let mut merged = Vec::new();
+                for chunk in chunks {
+                    let col = chunk.columns.get(col_name).ok_or_else(|| {
+                        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                            "Column '{}' not found in chunk during merge",
+                            col_name
+                        ))
+                    })?;
+                    match col {
+                        TinyColumn::OptBool(v) => merged.extend_from_slice(v),
+                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                            "Column '{}' has inconsistent type across chunks",
+                            col_name
+                        ))),
+                    }
+                }
+                Ok(TinyColumn::OptBool(merged))
+            },
+            TinyColumn::PyObject(_) => {
+                let mut merged = Vec::new();
+                for chunk in chunks {
+                    let col = chunk.columns.get(col_name).ok_or_else(|| {
+                        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                            "Column '{}' not found in chunk during merge",
+                            col_name
+                        ))
+                    })?;
+                    match col {
+                        TinyColumn::PyObject(v) => merged.extend_from_slice(v),
+                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                            "Column '{}' has inconsistent type across chunks",
+                            col_name
+                        ))),
+                    }
+                }
+                Ok(TinyColumn::PyObject(merged))
+            },
+            TinyColumn::OptPyObject(_) => {
+                let mut merged = Vec::new();
+                for chunk in chunks {
+                    let col = chunk.columns.get(col_name).ok_or_else(|| {
+                        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                            "Column '{}' not found in chunk during merge",
+                            col_name
+                        ))
+                    })?;
+                    match col {
+                        TinyColumn::OptPyObject(v) => merged.extend_from_slice(v),
+                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                            "Column '{}' has inconsistent type across chunks",
+                            col_name
+                        ))),
+                    }
+                }
+                Ok(TinyColumn::OptPyObject(merged))
+            },
+            TinyColumn::Mixed(_) => {
+                let mut merged = Vec::new();
+                for chunk in chunks {
+                    let col = chunk.columns.get(col_name).ok_or_else(|| {
+                        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                            "Column '{}' not found in chunk during merge",
+                            col_name
+                        ))
+                    })?;
+                    match col {
+                        TinyColumn::Mixed(v) => merged.extend(v.iter().cloned()),
+                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                            "Column '{}' has inconsistent type across chunks",
+                            col_name
+                        ))),
+                    }
+                }
+                Ok(TinyColumn::Mixed(merged))
+            },
+            TinyColumn::OptMixed(_) => {
+                let mut merged = Vec::new();
+                for chunk in chunks {
+                    let col = chunk.columns.get(col_name).ok_or_else(|| {
+                        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                            "Column '{}' not found in chunk during merge",
+                            col_name
+                        ))
+                    })?;
+                    match col {
+                        TinyColumn::OptMixed(v) => merged.extend(v.iter().cloned()),
+                        _ => return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                            "Column '{}' has inconsistent type across chunks",
+                            col_name
+                        ))),
+                    }
+                }
+                Ok(TinyColumn::OptMixed(merged))
+            },
         }
     }
 

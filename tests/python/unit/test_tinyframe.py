@@ -116,6 +116,12 @@ class TestTinyFrameOperations:
             if row["age"] is not None:
                 assert isinstance(row["age"], float)
 
+    def test_cast_string_to_int_invalid_raises(self):
+        """Invalid numeric strings raise ValueError rather than silently coercing to 0."""
+        frame = ft.TinyFrame.from_dicts([{"x": "42"}, {"x": "not_a_number"}])
+        with pytest.raises(ValueError, match="cannot parse string as int"):
+            frame.cast_column("x", int)
+
     def test_edit_column(self, sample_frame):
         """Test editing column values."""
         # Edit name column to uppercase

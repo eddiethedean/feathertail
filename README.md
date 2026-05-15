@@ -43,7 +43,7 @@ A high-performance Python DataFrame library powered by Rust — designed for fle
 - ✅ **Logging & Debugging**: Built-in logging system with performance monitoring
 - ✅ **Profiling Tools**: Performance profiling and optimization insights
 - ✅ **Development Tools**: Pre-commit hooks, automated testing, and development scripts
-- ✅ **244+ Comprehensive Tests**: Full test coverage running in well under one second locally
+- ✅ **250+ Comprehensive Tests**: Full test coverage running in well under one second locally
 
 ---
 
@@ -129,6 +129,13 @@ other_frame = ft.TinyFrame.from_dicts(other_data)
 joined = frame.join(other_frame, "city", "city", "inner")
 print(joined.to_dicts())
 ```
+
+#### Join semantics
+
+- **Composite keys**: A row is used for matching only if **every** join-key column is non-null (SQL-style). If any key component is null, that row does not appear in the join key index.
+- **Column names**: The result keeps one name per logical column. If the **same basename** appears as a non-join column on both sides, or if a join-key name on one frame collides with a **non-key** column on the other, feathertail raises `ValueError`—rename on one frame first. Automatic `_x` / `_y` suffixing (pandas-style) is not implemented yet.
+- **`cross_join`**: Left and right must have **disjoint** column names; overlaps raise `ValueError`.
+- **Python object fallback**: Fallback object storage from **both** sides is merged on join outputs so `to_dicts()` can resolve references. Conflicting reuse of the same internal id for different objects raises a runtime error (very rare).
 
 ### Advanced Analytics
 
@@ -258,6 +265,8 @@ print(f"Total operations: {overall_stats['total_operations']}")
 | str       | `Str`, `OptStr`    | UTF-8 strings with optional null support |
 | mixed     | `Mixed`, `OptMixed` | Mixed types with automatic Python object fallback |
 
+**`cast_column` and strings.** Casting a non-optional `Str` column to `int` or `float` is strict: each cell must parse; otherwise `ValueError` is raised (values are **not** coerced to `0`). Casting optional `OptStr` to numeric optional types maps unparseable strings to missing values where applicable.
+
 ---
 
 ## 📚 Documentation
@@ -301,7 +310,7 @@ feathertail uses GitHub Actions to automatically build and test wheels for all m
 ## 🧪 Testing
 
 ```bash
-# Run all tests (Rust + Python; 244+ Python unit tests plus Rust tests)
+# Run all tests (Rust + Python; 250+ Python unit tests plus Rust tests)
 make test
 
 # Run specific test categories
@@ -344,7 +353,7 @@ This library follows the same spirit: gentle on dependencies, elegant in design,
 
 ## 📊 Performance Benchmarks
 
-- **244+ Python unit tests** plus Rust tests run in well under one second locally
+- **250+ Python unit tests** plus Rust tests run in well under one second locally
 - **SIMD-accelerated** numerical operations
 - **Parallel processing** for multi-core performance
 - **Memory-optimized** with string interning and lazy evaluation
