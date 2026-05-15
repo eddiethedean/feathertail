@@ -221,16 +221,21 @@ class TestWindowFunctions:
         data = [{"value": "string"}]
         frame = ft.TinyFrame.from_dicts(data)
 
-        with pytest.raises(TypeError, match="Rolling operations only supported on numeric columns"):
+        with pytest.raises(
+            TypeError, match="Rolling operations only supported on numeric columns"
+        ):
             frame.rolling_mean("value", 2)
 
-        with pytest.raises(TypeError, match="Expanding operations only supported on numeric columns"):
+        with pytest.raises(
+            TypeError, match="Expanding operations only supported on numeric columns"
+        ):
             frame.expanding_mean("value")
 
     def test_window_operations_empty_frame(self):
         """Test window operations with empty frame"""
-        data = []
-        frame = ft.TinyFrame.from_dicts([{"value": 1.0}]).filter("value", ">", 10)  # Create empty frame with schema
+        frame = ft.TinyFrame.from_dicts([{"value": 1.0}]).filter(
+            "value", ">", 10
+        )  # Create empty frame with schema
 
         result = frame.rolling_mean("value", 2)
 
@@ -313,8 +318,8 @@ class TestWindowFunctions:
         assert rolling_means[0] is None
         assert rolling_means[1] is None
         assert rolling_means[2] == -1.0  # mean of [-2, -1, 0]
-        assert rolling_means[3] == 0.0   # mean of [-1, 0, 1]
-        assert rolling_means[4] == 1.0   # mean of [0, 1, 2]
+        assert rolling_means[3] == 0.0  # mean of [-1, 0, 1]
+        assert rolling_means[4] == 1.0  # mean of [0, 1, 2]
 
     def test_window_operations_with_zero_values(self):
         """Test window operations with zero values"""

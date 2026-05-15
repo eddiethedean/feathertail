@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 mod iter;
 
-use crate::frame::{TinyFrame, TinyColumn as FrameColumn, ValueEnum};
+use crate::frame::TinyFrame;
 
 #[pyclass]
 pub struct TinyCol {
@@ -22,20 +22,7 @@ impl TinyCol {
         let frame = self.frame.borrow(py);
         let col = frame.columns.get(&self.name)
             .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Column '{}' not found", self.name)))?;
-        let type_str = match col {
-            FrameColumn::Int(_) => "Int",
-            FrameColumn::Float(_) => "Float",
-            FrameColumn::Str(_) => "Str",
-            FrameColumn::Bool(_) => "Bool",
-            FrameColumn::OptInt(_) => "OptInt",
-            FrameColumn::OptFloat(_) => "OptFloat",
-            FrameColumn::OptStr(_) => "OptStr",
-            FrameColumn::OptBool(_) => "OptBool",
-            FrameColumn::Mixed(_) => "Mixed",
-            FrameColumn::OptMixed(_) => "OptMixed",
-            FrameColumn::PyObject(_) => "PyObject",
-            FrameColumn::OptPyObject(_) => "OptPyObject",
-        };
+        let type_str = col.type_tag();
         Ok(type_str.into())
     }
 

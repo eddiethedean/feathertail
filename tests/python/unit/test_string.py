@@ -1,6 +1,7 @@
 import pytest
 import feathertail as ft
 
+
 class TestStringOperations:
     """Test string operations"""
 
@@ -157,7 +158,11 @@ class TestStringOperations:
         assert result.len() == 3
 
         concatenated = self.get_column_data(result, "text_cat")
-        assert concatenated == ["hello world python", "hello world python", "hello world python"]
+        assert concatenated == [
+            "hello world python",
+            "hello world python",
+            "hello world python",
+        ]
 
     def test_str_operations_with_empty_strings(self):
         """Test string operations with empty strings"""
@@ -215,13 +220,16 @@ class TestStringOperations:
         data = [{"value": 123}]
         frame = ft.TinyFrame.from_dicts(data)
 
-        with pytest.raises(TypeError, match="String operations only supported on string columns"):
+        with pytest.raises(
+            TypeError, match="String operations only supported on string columns"
+        ):
             frame.str_upper("value")
 
     def test_str_operations_empty_frame(self):
         """Test string operations with empty frame"""
-        data = []
-        frame = ft.TinyFrame.from_dicts([{"text": "hello", "id": 1}]).filter("id", ">", 10)  # Create empty frame with schema
+        frame = ft.TinyFrame.from_dicts([{"text": "hello", "id": 1}]).filter(
+            "id", ">", 10
+        )  # Create empty frame with schema
 
         result = frame.str_upper("text")
 
@@ -238,7 +246,11 @@ class TestStringOperations:
         ]
         frame = ft.TinyFrame.from_dicts(data)
 
-        result = frame.str_strip("text").str_lower("text_strip").str_replace("text_strip_lower", " ", "_")
+        result = (
+            frame.str_strip("text")
+            .str_lower("text_strip")
+            .str_replace("text_strip_lower", " ", "_")
+        )
 
         assert "text_strip" in result.columns
         assert "text_strip_lower" in result.columns
@@ -307,7 +319,11 @@ class TestStringOperations:
         # Test length (unicode characters count as 1)
         result = frame.str_len("text")
         lengths = self.get_column_data(result, "text_len")
-        assert lengths == [11, 9, 10]  # emoji (4 bytes) + space (1 byte) + word (6 bytes)
+        assert lengths == [
+            11,
+            9,
+            10,
+        ]  # emoji (4 bytes) + space (1 byte) + word (6 bytes)
 
         # Test replace
         result = frame.str_replace("text", "🚀", "🚁")
@@ -336,4 +352,8 @@ class TestStringOperations:
         # Test contains with empty substring
         result = frame.str_contains("text", "")
         contains_results = self.get_column_data(result, "text_contains")
-        assert contains_results == [True, True, True]  # Empty string is always contained
+        assert contains_results == [
+            True,
+            True,
+            True,
+        ]  # Empty string is always contained

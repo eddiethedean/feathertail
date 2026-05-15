@@ -4,8 +4,6 @@ Unit tests for filtering and sorting functionality.
 
 import pytest
 import feathertail as ft
-import pandas as pd
-import numpy as np
 
 
 class TestFiltering:
@@ -30,7 +28,7 @@ class TestFiltering:
     def test_filter_equals(self, sample_frame):
         """Test filtering with equals condition."""
         result = sample_frame.filter("city", "==", "New York")
-        
+
         assert result.len() == 2
         data = result.to_dicts()
         for row in data:
@@ -39,7 +37,7 @@ class TestFiltering:
     def test_filter_not_equals(self, sample_frame):
         """Test filtering with not equals condition."""
         result = sample_frame.filter("city", "!=", "New York")
-        
+
         assert result.len() == 3
         data = result.to_dicts()
         for row in data:
@@ -48,7 +46,7 @@ class TestFiltering:
     def test_filter_greater_than(self, sample_frame):
         """Test filtering with greater than condition."""
         result = sample_frame.filter("age", ">", 28)
-        
+
         assert result.len() == 2
         data = result.to_dicts()
         for row in data:
@@ -57,7 +55,7 @@ class TestFiltering:
     def test_filter_less_than(self, sample_frame):
         """Test filtering with less than condition."""
         result = sample_frame.filter("age", "<", 30)
-        
+
         assert result.len() == 3
         data = result.to_dicts()
         for row in data:
@@ -66,7 +64,7 @@ class TestFiltering:
     def test_filter_greater_equal(self, sample_frame):
         """Test filtering with greater than or equal condition."""
         result = sample_frame.filter("age", ">=", 30)
-        
+
         assert result.len() == 2
         data = result.to_dicts()
         for row in data:
@@ -75,7 +73,7 @@ class TestFiltering:
     def test_filter_less_equal(self, sample_frame):
         """Test filtering with less than or equal condition."""
         result = sample_frame.filter("age", "<=", 28)
-        
+
         assert result.len() == 3
         data = result.to_dicts()
         for row in data:
@@ -94,7 +92,7 @@ class TestFiltering:
     def test_dropna_no_nulls(self, sample_frame):
         """Test dropna with no null values."""
         result = sample_frame.dropna("age")
-        
+
         # Should return the same frame since there are no nulls
         assert result.len() == sample_frame.len()
         assert result.shape == sample_frame.shape
@@ -107,13 +105,13 @@ class TestFiltering:
             {"name": "Charlie", "age": 35, "score": None},
             {"name": "Diana", "age": 28, "score": 88.0},
         ]
-        
+
         frame = ft.TinyFrame.from_dicts(data_with_nulls)
-        
+
         # Drop nulls from age column
         result = frame.dropna("age")
         assert result.len() == 3  # Bob should be removed
-        
+
         data = result.to_dicts()
         for row in data:
             assert row["age"] is not None
@@ -146,10 +144,10 @@ class TestSorting:
     def test_sort_single_column_ascending(self, sample_frame):
         """Test sorting by single column in ascending order."""
         result = sample_frame.sort_values(["age"], ascending=True)
-        
+
         assert result.len() == sample_frame.len()
         assert result.shape == sample_frame.shape
-        
+
         # Check that ages are in ascending order
         data = result.to_dicts()
         ages = [row["age"] for row in data]
@@ -158,10 +156,10 @@ class TestSorting:
     def test_sort_single_column_descending(self, sample_frame):
         """Test sorting by single column in descending order."""
         result = sample_frame.sort_values(["age"], ascending=False)
-        
+
         assert result.len() == sample_frame.len()
         assert result.shape == sample_frame.shape
-        
+
         # Check that ages are in descending order
         data = result.to_dicts()
         ages = [row["age"] for row in data]
@@ -170,7 +168,7 @@ class TestSorting:
     def test_sort_default_ascending(self, sample_frame):
         """Test sorting with default ascending order."""
         result = sample_frame.sort_values(["age"])
-        
+
         # Should be ascending by default
         data = result.to_dicts()
         ages = [row["age"] for row in data]
@@ -186,18 +184,18 @@ class TestSorting:
             {"name": "Diana", "age": 30, "score": 88.0, "group": "A"},
             {"name": "Eve", "age": 30, "score": 95.0, "group": "B"},
         ]
-        
+
         frame = ft.TinyFrame.from_dicts(data_with_ties)
         result = frame.sort_values(["age", "score"], ascending=True)
-        
+
         assert result.len() == frame.len()
-        
+
         # Check that sorting is stable and correct
         data = result.to_dicts()
         for i in range(len(data) - 1):
             current = data[i]
             next_row = data[i + 1]
-            
+
             if current["age"] == next_row["age"]:
                 assert current["score"] <= next_row["score"]
             else:
@@ -212,7 +210,7 @@ class TestSorting:
         """Test sorting empty frame."""
         empty_frame = ft.TinyFrame()
         result = empty_frame.sort_values(["age"])
-        
+
         assert result.len() == 0
         assert result.shape == (0, 0)
 
@@ -221,7 +219,7 @@ class TestSorting:
         single_row = [{"name": "Alice", "age": 25, "score": 85.5}]
         frame = ft.TinyFrame.from_dicts(single_row)
         result = frame.sort_values(["age"])
-        
+
         assert result.len() == 1
         assert result.shape == frame.shape
 
@@ -233,9 +231,9 @@ class TestFilteringEdgeCases:
         """Test filtering that results in empty frame."""
         data = [{"name": "Alice", "age": 25}, {"name": "Bob", "age": 30}]
         frame = ft.TinyFrame.from_dicts(data)
-        
+
         result = frame.filter("age", ">", 100)  # No ages > 100
-        
+
         assert result.len() == 0
         assert result.shape == (0, 2)  # Same columns, no rows
 
@@ -243,9 +241,9 @@ class TestFilteringEdgeCases:
         """Test filtering that returns all rows."""
         data = [{"name": "Alice", "age": 25}, {"name": "Bob", "age": 30}]
         frame = ft.TinyFrame.from_dicts(data)
-        
+
         result = frame.filter("age", ">=", 0)  # All ages >= 0
-        
+
         assert result.len() == frame.len()
         assert result.shape == frame.shape
 
@@ -256,14 +254,14 @@ class TestFilteringEdgeCases:
             {"name": "Bob", "age": None, "score": 92.0},
             {"name": "Charlie", "age": 35, "score": 78.5},
         ]
-        
+
         frame = ft.TinyFrame.from_dicts(data_with_nulls)
         result = frame.sort_values(["age"])
-        
+
         # Should handle nulls gracefully (nulls typically go to end)
         assert result.len() == frame.len()
         data = result.to_dicts()
-        
+
         # Check that non-null ages are sorted
         non_null_ages = [row["age"] for row in data if row["age"] is not None]
         assert non_null_ages == sorted(non_null_ages)

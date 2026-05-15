@@ -1,5 +1,11 @@
-// Cross-platform SIMD operations with automatic feature detection
-// Uses architecture-specific SIMD when available, falls back to scalar operations
+//! Numeric and string SIMD layer for feathertail.
+//!
+//! **Public numeric surface**: call [`SimdOps`] and [`SimdStringOps`] from feature code paths; both
+//! route through the `simd_dispatch!` macro, which resolves to optimized
+//! implementations when the `simd` Cargo feature matches the host architecture (`avx2` / `neon`),
+//! and otherwise delegates to [`scalar_fallback::ScalarOps`]. Do not import architecture-specific
+//! modules directly outside tests and SIMD backends.
+
 
 // Simple dispatch macro that works for both SIMD and no-SIMD cases
 macro_rules! simd_dispatch {

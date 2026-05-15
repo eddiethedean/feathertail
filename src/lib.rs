@@ -13,6 +13,7 @@ pub mod ranking;
 pub mod string; // Added for string operations
 pub mod validation; // Added for data validation
 pub mod logging; // Added for logging system
+pub mod observability;
 pub mod debug; // Added for debug tools
 pub mod profiling; // Added for performance profiling
 mod groupby;
@@ -150,27 +151,27 @@ fn init_logging_with_config(level: &str, log_memory: bool, log_performance: bool
 
 #[pyfunction]
 fn log_operation(operation: &str, details: &str) {
-    crate::logging::log_operation(operation, details);
+    crate::observability::log_operation(operation, details);
 }
 
 #[pyfunction]
 fn log_memory_usage(operation: &str, memory_mb: f64) {
-    crate::logging::log_memory_usage(operation, memory_mb);
+    crate::observability::log_memory_usage(operation, memory_mb);
 }
 
 #[pyfunction]
 fn log_performance(operation: &str, duration_ms: f64, rows_processed: usize) {
-    crate::logging::log_performance(operation, duration_ms, rows_processed);
+    crate::observability::log_performance(operation, duration_ms, rows_processed);
 }
 
 #[pyfunction]
 fn log_error(operation: &str, error: &str, context: Option<&str>) {
-    crate::logging::log_error(operation, error, context);
+    crate::observability::log_error(operation, error, context);
 }
 
 #[pyfunction]
 fn log_warning(operation: &str, warning: &str, context: Option<&str>) {
-    crate::logging::log_warning(operation, warning, context);
+    crate::observability::log_warning(operation, warning, context);
 }
 
 // Debug function wrappers

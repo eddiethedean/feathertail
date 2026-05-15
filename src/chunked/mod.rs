@@ -170,72 +170,17 @@ impl ChunkedProcessor {
 
     // Helper methods
     fn create_chunk(&self, frame: &TinyFrame, start: usize, end: usize) -> PyResult<TinyFrame> {
-        let mut chunk_columns: HashMap<String, TinyColumn> = HashMap::new();
-        let chunk_length = end - start;
-
-        for (col_name, col_data) in &frame.columns {
-            let chunk_col = self.chunk_column(col_data, start, end)?;
-            chunk_columns.insert(col_name.clone(), chunk_col);
-        }
+        let chunk_columns: HashMap<String, TinyColumn> = frame
+            .columns
+            .iter()
+            .map(|(name, col)| (name.clone(), col.slice_row_range(start, end)))
+            .collect();
 
         Ok(TinyFrame {
             columns: chunk_columns,
-            length: chunk_length,
+            length: end - start,
             py_objects: frame.py_objects.clone(),
         })
-    }
-
-    fn chunk_column(&self, col: &TinyColumn, start: usize, end: usize) -> PyResult<TinyColumn> {
-        match col {
-            TinyColumn::Int(v) => {
-                let chunk: Vec<i64> = v[start..end].to_vec();
-                Ok(TinyColumn::Int(chunk))
-            },
-            TinyColumn::Float(v) => {
-                let chunk: Vec<f64> = v[start..end].to_vec();
-                Ok(TinyColumn::Float(chunk))
-            },
-            TinyColumn::Str(v) => {
-                let chunk: Vec<String> = v[start..end].to_vec();
-                Ok(TinyColumn::Str(chunk))
-            },
-            TinyColumn::Bool(v) => {
-                let chunk: Vec<bool> = v[start..end].to_vec();
-                Ok(TinyColumn::Bool(chunk))
-            },
-            TinyColumn::PyObject(v) => {
-                let chunk: Vec<u64> = v[start..end].to_vec();
-                Ok(TinyColumn::PyObject(chunk))
-            },
-            TinyColumn::Mixed(v) => {
-                let chunk: Vec<ValueEnum> = v[start..end].to_vec();
-                Ok(TinyColumn::Mixed(chunk))
-            },
-            TinyColumn::OptInt(v) => {
-                let chunk: Vec<Option<i64>> = v[start..end].to_vec();
-                Ok(TinyColumn::OptInt(chunk))
-            },
-            TinyColumn::OptFloat(v) => {
-                let chunk: Vec<Option<f64>> = v[start..end].to_vec();
-                Ok(TinyColumn::OptFloat(chunk))
-            },
-            TinyColumn::OptStr(v) => {
-                let chunk: Vec<Option<String>> = v[start..end].to_vec();
-                Ok(TinyColumn::OptStr(chunk))
-            },
-            TinyColumn::OptBool(v) => {
-                let chunk: Vec<Option<bool>> = v[start..end].to_vec();
-                Ok(TinyColumn::OptBool(chunk))
-            },
-            TinyColumn::OptPyObject(v) => {
-                let chunk: Vec<Option<u64>> = v[start..end].to_vec();
-                Ok(TinyColumn::OptPyObject(chunk))
-            },
-            TinyColumn::OptMixed(v) => {
-                let chunk: Vec<Option<ValueEnum>> = v[start..end].to_vec();
-                Ok(TinyColumn::OptMixed(chunk))
-            },
-        }
     }
 
     fn merge_chunks(&self, chunks: Vec<TinyFrame>) -> PyResult<TinyFrame> {

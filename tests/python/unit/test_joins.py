@@ -29,13 +29,13 @@ class TestJoinOperations:
     def test_inner_join(self, left_frame, right_frame):
         """Test inner join operation."""
         result = left_frame.inner_join(right_frame, ["dept_id"], ["dept_id"])
-        
+
         assert result.len() == 3
         assert "id" in result.columns
         assert "name" in result.columns
         assert "dept_id" in result.columns
         assert "dept_name" in result.columns
-        
+
         # Check specific rows
         rows = list(result)
         dept_names = [row["dept_name"] for row in rows]
@@ -46,13 +46,13 @@ class TestJoinOperations:
     def test_left_join(self, left_frame, right_frame):
         """Test left join operation."""
         result = left_frame.left_join(right_frame, ["dept_id"], ["dept_id"])
-        
+
         assert result.len() == 4  # All left rows preserved
         assert "id" in result.columns
         assert "name" in result.columns
         assert "dept_id" in result.columns
         assert "dept_name" in result.columns
-        
+
         # Check that David (dept_id 30) has null dept_name
         rows = list(result)
         david_row = next(row for row in rows if row["name"] == "David")
@@ -61,13 +61,13 @@ class TestJoinOperations:
     def test_right_join(self, left_frame, right_frame):
         """Test right join operation."""
         result = left_frame.right_join(right_frame, ["dept_id"], ["dept_id"])
-        
+
         assert result.len() == 4  # All right rows preserved
         assert "id" in result.columns
         assert "name" in result.columns
         assert "dept_id" in result.columns
         assert "dept_name" in result.columns
-        
+
         # Check that Sales (dept_id 40) has null id and name
         rows = list(result)
         sales_row = next(row for row in rows if row["dept_name"] == "Sales")
@@ -77,18 +77,18 @@ class TestJoinOperations:
     def test_outer_join(self, left_frame, right_frame):
         """Test outer join operation."""
         result = left_frame.outer_join(right_frame, ["dept_id"], ["dept_id"])
-        
+
         assert result.len() == 5  # All rows from both frames
         assert "id" in result.columns
         assert "name" in result.columns
         assert "dept_id" in result.columns
         assert "dept_name" in result.columns
-        
+
         # Check that both David and Sales are present
         rows = list(result)
         names = [row["name"] for row in rows if row["name"] is not None]
         dept_names = [row["dept_name"] for row in rows if row["dept_name"] is not None]
-        
+
         assert "David" in names
         assert "Sales" in dept_names
 
@@ -156,15 +156,17 @@ class TestJoinOperations:
             {"id": 2, "name": "Bob", "dept_id": 20, "location": "SF"},
         ]
         left = TinyFrame.from_dicts(data)
-        
+
         right_data = [
             {"dept_id": 10, "location": "NYC", "dept_name": "Engineering"},
             {"dept_id": 20, "location": "SF", "dept_name": "Marketing"},
         ]
         right = TinyFrame.from_dicts(right_data)
-        
-        result = left.inner_join(right, ["dept_id", "location"], ["dept_id", "location"])
-        
+
+        result = left.inner_join(
+            right, ["dept_id", "location"], ["dept_id", "location"]
+        )
+
         assert result.len() == 2
         assert "dept_name" in result.columns
 
@@ -183,10 +185,10 @@ class TestJoinOperations:
         # Create empty frames with some columns
         empty1 = TinyFrame.from_dicts([{"id": None, "name": None}])
         empty1 = empty1.filter("id", "!=", None)  # This will result in empty frame
-        
+
         empty2 = TinyFrame.from_dicts([{"id": None, "dept": None}])
         empty2 = empty2.filter("id", "!=", None)  # This will result in empty frame
-        
+
         result = empty1.inner_join(empty2, ["id"], ["id"])
         assert result.len() == 0
 
@@ -197,15 +199,15 @@ class TestJoinOperations:
             {"id": 2, "value": 200},
         ]
         left = TinyFrame.from_dicts(left_data)
-        
+
         right_data = [
             {"id": 1, "label": "A"},
             {"id": 2, "label": "B"},
         ]
         right = TinyFrame.from_dicts(right_data)
-        
+
         result = left.inner_join(right, ["id"], ["id"])
-        
+
         assert result.len() == 2
         assert "value" in result.columns
         assert "label" in result.columns
@@ -218,16 +220,16 @@ class TestJoinOperations:
             {"id": 3, "name": "Charlie"},
         ]
         left = TinyFrame.from_dicts(left_data)
-        
+
         right_data = [
             {"id": 1, "dept": "Engineering"},
             {"id": 2, "dept": "Marketing"},
             {"id": 3, "dept": "Sales"},
         ]
         right = TinyFrame.from_dicts(right_data)
-        
+
         result = left.inner_join(right, ["id"], ["id"])
-        
+
         # Should only include rows with non-null join values
         assert result.len() == 2
         names = [row["name"] for row in result]
@@ -239,12 +241,12 @@ class TestJoinOperations:
         """Test join with conflicting column names."""
         left_data = [{"id": 1, "name": "Alice", "value": 100}]
         left = TinyFrame.from_dicts(left_data)
-        
+
         right_data = [{"id": 1, "dept_name": "Engineering", "dept_value": "Dept"}]
         right = TinyFrame.from_dicts(right_data)
-        
+
         result = left.inner_join(right, ["id"], ["id"])
-        
+
         # Should have all columns
         assert result.len() == 1
         assert "id" in result.columns
@@ -261,7 +263,7 @@ class TestJoinEdgeCases:
         """Test join with single row frames."""
         left = TinyFrame.from_dicts([{"id": 1, "name": "Alice"}])
         right = TinyFrame.from_dicts([{"id": 1, "dept": "Engineering"}])
-        
+
         result = left.inner_join(right, ["id"], ["id"])
         assert result.len() == 1
         rows = list(result)
@@ -272,7 +274,7 @@ class TestJoinEdgeCases:
         """Test join with no matching rows."""
         left = TinyFrame.from_dicts([{"id": 1, "name": "Alice"}])
         right = TinyFrame.from_dicts([{"id": 2, "dept": "Engineering"}])
-        
+
         result = left.inner_join(right, ["id"], ["id"])
         assert result.len() == 0
 
@@ -283,15 +285,15 @@ class TestJoinEdgeCases:
             {"id": 1, "name": "Alice2"},
         ]
         left = TinyFrame.from_dicts(left_data)
-        
+
         right_data = [
             {"id": 1, "dept": "Engineering"},
             {"id": 1, "dept": "Engineering2"},
         ]
         right = TinyFrame.from_dicts(right_data)
-        
+
         result = left.inner_join(right, ["id"], ["id"])
-        
+
         # Should have 2 * 2 = 4 rows (cartesian product of duplicates)
         assert result.len() == 4
 
@@ -300,11 +302,11 @@ class TestJoinEdgeCases:
         # Create frames with 100 rows each
         left_data = [{"id": i, "value": i * 10} for i in range(100)]
         left = TinyFrame.from_dicts(left_data)
-        
+
         right_data = [{"id": i, "label": f"Item{i}"} for i in range(50, 150)]
         right = TinyFrame.from_dicts(right_data)
-        
+
         result = left.inner_join(right, ["id"], ["id"])
-        
+
         # Should have 50 matching rows (id 50-99)
         assert result.len() == 50

@@ -37,36 +37,11 @@ pub fn pyobject_to_option_valueenum(py_value: &PyAny, py_objects: &mut HashMap<u
 }
 
 pub fn empty_like_column(col: &crate::frame::TinyColumn) -> crate::frame::TinyColumn {
-    match col {
-        crate::frame::TinyColumn::Int(_) => crate::frame::TinyColumn::Int(Vec::new()),
-        crate::frame::TinyColumn::Float(_) => crate::frame::TinyColumn::Float(Vec::new()),
-        crate::frame::TinyColumn::Bool(_) => crate::frame::TinyColumn::Bool(Vec::new()),
-        crate::frame::TinyColumn::Str(_) => crate::frame::TinyColumn::Str(Vec::new()),
-        crate::frame::TinyColumn::OptInt(_) => crate::frame::TinyColumn::OptInt(Vec::new()),
-        crate::frame::TinyColumn::OptFloat(_) => crate::frame::TinyColumn::OptFloat(Vec::new()),
-        crate::frame::TinyColumn::OptBool(_) => crate::frame::TinyColumn::OptBool(Vec::new()),
-        crate::frame::TinyColumn::OptStr(_) => crate::frame::TinyColumn::OptStr(Vec::new()),
-        crate::frame::TinyColumn::Mixed(_) => crate::frame::TinyColumn::Mixed(Vec::new()),
-        crate::frame::TinyColumn::OptMixed(_) => crate::frame::TinyColumn::OptMixed(Vec::new()),
-        crate::frame::TinyColumn::PyObject(_) => crate::frame::TinyColumn::PyObject(Vec::new()),
-        crate::frame::TinyColumn::OptPyObject(_) => crate::frame::TinyColumn::OptPyObject(Vec::new()),
-    }
+    col.empty_same_layout()
 }
 
 pub fn append_value(col: &mut crate::frame::TinyColumn, idx: usize, src: &crate::frame::TinyColumn) {
-    match (col, src) {
-        (crate::frame::TinyColumn::Int(dst), crate::frame::TinyColumn::Int(src)) => dst.push(src[idx]),
-        (crate::frame::TinyColumn::Float(dst), crate::frame::TinyColumn::Float(src)) => dst.push(src[idx]),
-        (crate::frame::TinyColumn::Bool(dst), crate::frame::TinyColumn::Bool(src)) => dst.push(src[idx]),
-        (crate::frame::TinyColumn::Str(dst), crate::frame::TinyColumn::Str(src)) => dst.push(src[idx].clone()),
-        (crate::frame::TinyColumn::OptInt(dst), crate::frame::TinyColumn::OptInt(src)) => dst.push(src[idx]),
-        (crate::frame::TinyColumn::OptFloat(dst), crate::frame::TinyColumn::OptFloat(src)) => dst.push(src[idx]),
-        (crate::frame::TinyColumn::OptBool(dst), crate::frame::TinyColumn::OptBool(src)) => dst.push(src[idx]),
-        (crate::frame::TinyColumn::OptStr(dst), crate::frame::TinyColumn::OptStr(src)) => dst.push(src[idx].clone()),
-        (crate::frame::TinyColumn::Mixed(dst), crate::frame::TinyColumn::Mixed(src)) => dst.push(src[idx].clone()),
-        (crate::frame::TinyColumn::OptMixed(dst), crate::frame::TinyColumn::OptMixed(src)) => dst.push(src[idx].clone()),
-        (crate::frame::TinyColumn::PyObject(dst), crate::frame::TinyColumn::PyObject(src)) => dst.push(src[idx]),
-        (crate::frame::TinyColumn::OptPyObject(dst), crate::frame::TinyColumn::OptPyObject(src)) => dst.push(src[idx]),
-        _ => panic!("Column type mismatch in append_value"),
+    if col.append_row_strict(src, idx).is_err() {
+        panic!("Column type mismatch in append_value");
     }
 }

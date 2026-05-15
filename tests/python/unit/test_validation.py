@@ -1,6 +1,7 @@
 import pytest
 import feathertail as ft
 
+
 class TestValidationOperations:
     """Test validation operations"""
 
@@ -234,18 +235,23 @@ class TestValidationOperations:
         data = [{"value": "string"}]
         frame = ft.TinyFrame.from_dicts(data)
 
-        with pytest.raises(TypeError, match="Range validation only supported for numeric columns"):
+        with pytest.raises(
+            TypeError, match="Range validation only supported for numeric columns"
+        ):
             frame.validate_range("value", 0, 10)
 
         data2 = [{"value": 123}]
         frame2 = ft.TinyFrame.from_dicts(data2)
-        with pytest.raises(TypeError, match="Pattern validation only supported for string columns"):
+        with pytest.raises(
+            TypeError, match="Pattern validation only supported for string columns"
+        ):
             frame2.validate_pattern("value", "pattern")
 
     def test_validation_operations_empty_frame(self):
         """Test validation operations with empty frame"""
-        data = []
-        frame = ft.TinyFrame.from_dicts([{"value": 1, "id": 1}]).filter("id", ">", 10)  # Create empty frame with schema
+        frame = ft.TinyFrame.from_dicts([{"value": 1, "id": 1}]).filter(
+            "id", ">", 10
+        )  # Create empty frame with schema
 
         result = frame.validate_not_null("value")
 
@@ -375,5 +381,5 @@ class TestValidationOperations:
 
         validation_results = self.get_column_data(result, "value_unique")
         # First occurrence of each value should be True, subsequent should be False
-        assert validation_results[0] == True  # First occurrence of 0.0
-        assert validation_results[100] == False  # Second occurrence of 0.0
+        assert validation_results[0]  # First occurrence of 0.0
+        assert not validation_results[100]  # Second occurrence of 0.0

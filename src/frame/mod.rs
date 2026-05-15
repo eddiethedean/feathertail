@@ -1,9 +1,6 @@
 use pyo3::prelude::*;
 use std::collections::HashMap;
-use crate::frame::iter::TinyFrameRowIter;
 use crate::column::TinyCol;
-use crate::types::DateTimeColumn;
-
 
 pub mod cast;
 pub mod convert;
@@ -14,76 +11,11 @@ pub mod lazy;
 pub mod optimize;
 pub mod string_optimize;
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum ValueEnum {
-    Int(i64),
-    Float(f64),
-    Str(String),
-    Bool(bool),
-    PyObjectId(u64),
-}
+mod value;
+mod column;
 
-impl std::hash::Hash for ValueEnum {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        match self {
-            ValueEnum::Int(i) => i.hash(state),
-            ValueEnum::Float(f) => {
-                // Handle NaN and infinity for hashing
-                if f.is_nan() {
-                    state.write_u64(0x7ff8000000000000u64); // NaN representation
-                } else if f.is_infinite() {
-                    if f.is_sign_positive() {
-                        state.write_u64(0x7ff0000000000000u64); // +inf
-                    } else {
-                        state.write_u64(0xfff0000000000000u64); // -inf
-                    }
-                } else {
-                    f.to_bits().hash(state);
-                }
-            },
-            ValueEnum::Str(s) => s.hash(state),
-            ValueEnum::Bool(b) => b.hash(state),
-            ValueEnum::PyObjectId(id) => id.hash(state),
-        }
-    }
-}
-
-impl std::cmp::Eq for ValueEnum {}
-
-impl std::cmp::Ord for ValueEnum {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        match (self, other) {
-            (ValueEnum::Int(a), ValueEnum::Int(b)) => a.cmp(b),
-            (ValueEnum::Float(a), ValueEnum::Float(b)) => a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal),
-            (ValueEnum::Str(a), ValueEnum::Str(b)) => a.cmp(b),
-            (ValueEnum::Bool(a), ValueEnum::Bool(b)) => a.cmp(b),
-            (ValueEnum::PyObjectId(a), ValueEnum::PyObjectId(b)) => a.cmp(b),
-            _ => std::cmp::Ordering::Equal,
-        }
-    }
-}
-
-impl std::cmp::PartialOrd for ValueEnum {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-#[derive(Clone)]
-pub enum TinyColumn {
-    Int(Vec<i64>),
-    Float(Vec<f64>),
-    Str(Vec<String>),
-    Bool(Vec<bool>),
-    OptInt(Vec<Option<i64>>),
-    OptFloat(Vec<Option<f64>>),
-    OptStr(Vec<Option<String>>),
-    OptBool(Vec<Option<bool>>),
-    Mixed(Vec<ValueEnum>),
-    OptMixed(Vec<Option<ValueEnum>>),
-    PyObject(Vec<u64>),
-    OptPyObject(Vec<Option<u64>>),
-}
+pub use value::ValueEnum;
+pub use column::{TinyColumn, TinyColumnIter};
 
 /// TinyFrame
 ///
@@ -953,59 +885,9 @@ impl TinyFrame {
     // Helper methods for filtering and sorting
     fn filter_by_indices(&self, indices: Vec<usize>) -> PyResult<Self> {
         let mut new_columns: HashMap<String, TinyColumn> = HashMap::new();
-        
+
         for (name, column) in &self.columns {
-            let new_column = match column {
-                TinyColumn::Int(v) => {
-                    let new_v: Vec<i64> = indices.iter().map(|&i| v[i]).collect();
-                    TinyColumn::Int(new_v)
-                }
-                TinyColumn::Float(v) => {
-                    let new_v: Vec<f64> = indices.iter().map(|&i| v[i]).collect();
-                    TinyColumn::Float(new_v)
-                }
-                TinyColumn::Str(v) => {
-                    let new_v: Vec<String> = indices.iter().map(|&i| v[i].clone()).collect();
-                    TinyColumn::Str(new_v)
-                }
-                TinyColumn::Bool(v) => {
-                    let new_v: Vec<bool> = indices.iter().map(|&i| v[i]).collect();
-                    TinyColumn::Bool(new_v)
-                }
-                TinyColumn::OptInt(v) => {
-                    let new_v: Vec<Option<i64>> = indices.iter().map(|&i| v[i]).collect();
-                    TinyColumn::OptInt(new_v)
-                }
-                TinyColumn::OptFloat(v) => {
-                    let new_v: Vec<Option<f64>> = indices.iter().map(|&i| v[i]).collect();
-                    TinyColumn::OptFloat(new_v)
-                }
-                TinyColumn::OptStr(v) => {
-                    let new_v: Vec<Option<String>> = indices.iter().map(|&i| v[i].clone()).collect();
-                    TinyColumn::OptStr(new_v)
-                }
-                TinyColumn::OptBool(v) => {
-                    let new_v: Vec<Option<bool>> = indices.iter().map(|&i| v[i]).collect();
-                    TinyColumn::OptBool(new_v)
-                }
-                TinyColumn::Mixed(v) => {
-                    let new_v: Vec<ValueEnum> = indices.iter().map(|&i| v[i].clone()).collect();
-                    TinyColumn::Mixed(new_v)
-                }
-                TinyColumn::OptMixed(v) => {
-                    let new_v: Vec<Option<ValueEnum>> = indices.iter().map(|&i| v[i].clone()).collect();
-                    TinyColumn::OptMixed(new_v)
-                }
-                TinyColumn::PyObject(v) => {
-                    let new_v: Vec<u64> = indices.iter().map(|&i| v[i]).collect();
-                    TinyColumn::PyObject(new_v)
-                }
-                TinyColumn::OptPyObject(v) => {
-                    let new_v: Vec<Option<u64>> = indices.iter().map(|&i| v[i]).collect();
-                    TinyColumn::OptPyObject(new_v)
-                }
-            };
-            new_columns.insert(name.clone(), new_column);
+            new_columns.insert(name.clone(), column.gather_rows(&indices));
         }
 
         Ok(TinyFrame {
@@ -1072,100 +954,6 @@ impl TinyFrame {
             (Some(_), None) => std::cmp::Ordering::Less,
             (None, Some(_)) => std::cmp::Ordering::Greater,
             (None, None) => std::cmp::Ordering::Equal,
-        }
-    }
-}
-
-impl TinyColumn {
-    pub fn len(&self) -> usize {
-        match self {
-            TinyColumn::Int(v) => v.len(),
-            TinyColumn::Float(v) => v.len(),
-            TinyColumn::Str(v) => v.len(),
-            TinyColumn::Bool(v) => v.len(),
-            TinyColumn::OptInt(v) => v.len(),
-            TinyColumn::OptFloat(v) => v.len(),
-            TinyColumn::OptStr(v) => v.len(),
-            TinyColumn::OptBool(v) => v.len(),
-            TinyColumn::Mixed(v) => v.len(),
-            TinyColumn::OptMixed(v) => v.len(),
-            TinyColumn::PyObject(v) => v.len(),
-            TinyColumn::OptPyObject(v) => v.len(),
-        }
-    }
-
-    pub fn iter(&self) -> TinyColumnIter {
-        TinyColumnIter::new(self)
-    }
-}
-
-pub struct TinyColumnIter<'a> {
-    column: &'a TinyColumn,
-    index: usize,
-}
-
-impl<'a> TinyColumnIter<'a> {
-    fn new(column: &'a TinyColumn) -> Self {
-        TinyColumnIter { column, index: 0 }
-    }
-}
-
-impl<'a> Iterator for TinyColumnIter<'a> {
-    type Item = ValueEnum;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.column.len() {
-            return None;
-        }
-
-        let value = match self.column {
-            TinyColumn::Int(v) => ValueEnum::Int(v[self.index]),
-            TinyColumn::Float(v) => ValueEnum::Float(v[self.index]),
-            TinyColumn::Str(v) => ValueEnum::Str(v[self.index].clone()),
-            TinyColumn::Bool(v) => ValueEnum::Bool(v[self.index]),
-            TinyColumn::OptInt(v) => {
-                self.index += 1;
-                return v[self.index - 1].map(ValueEnum::Int);
-            }
-            TinyColumn::OptFloat(v) => {
-                self.index += 1;
-                return v[self.index - 1].map(ValueEnum::Float);
-            }
-            TinyColumn::OptStr(v) => {
-                self.index += 1;
-                return v[self.index - 1].clone().map(ValueEnum::Str);
-            }
-            TinyColumn::OptBool(v) => {
-                self.index += 1;
-                return v[self.index - 1].map(ValueEnum::Bool);
-            }
-            TinyColumn::Mixed(v) => v[self.index].clone(),
-            TinyColumn::OptMixed(v) => {
-                self.index += 1;
-                return v[self.index - 1].clone();
-            }
-            TinyColumn::PyObject(v) => ValueEnum::PyObjectId(v[self.index]),
-            TinyColumn::OptPyObject(v) => {
-                self.index += 1;
-                return v[self.index - 1].map(ValueEnum::PyObjectId);
-            }
-        };
-
-        self.index += 1;
-        Some(value)
-    }
-}
-
-impl ValueEnum {
-    pub fn to_py(&self, py: Python, py_objects: &HashMap<u64, PyObject>) -> PyObject {
-        match self {
-            ValueEnum::Int(v) => v.into_py(py),
-            ValueEnum::Float(v) => v.into_py(py),
-            ValueEnum::Str(v) => v.clone().into_py(py),
-            ValueEnum::Bool(v) => v.into_py(py),
-            ValueEnum::PyObjectId(id) => {
-                py_objects.get(id).map(|o| o.clone_ref(py)).unwrap_or_else(|| py.None())
-            }
         }
     }
 }

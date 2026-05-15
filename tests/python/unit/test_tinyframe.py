@@ -4,8 +4,6 @@ Unit tests for TinyFrame functionality.
 
 import pytest
 import feathertail as ft
-import pandas as pd
-import numpy as np
 
 
 class TestTinyFrameCreation:
@@ -53,7 +51,7 @@ class TestTinyFrameProperties:
     def test_is_empty_property(self, sample_frame):
         """Test is_empty property."""
         assert not sample_frame.is_empty()
-        
+
         empty_frame = ft.TinyFrame()
         assert empty_frame.is_empty()
 
@@ -83,11 +81,11 @@ class TestTinyFrameOperations:
     def test_fillna_scalar(self, sample_frame):
         """Test filling missing values with scalar."""
         # First, ensure we have some None values
-        original_data = sample_frame.to_dicts()
-        
+        sample_frame.to_dicts()
+
         # Fill missing values
         sample_frame.fillna({"age": 0, "score": 0.0})
-        
+
         # Check that None values were filled
         filled_data = sample_frame.to_dicts()
         for row in filled_data:
@@ -97,7 +95,7 @@ class TestTinyFrameOperations:
     def test_fillna_dict(self, sample_frame):
         """Test filling missing values with dictionary."""
         sample_frame.fillna({"age": 25, "score": 80.0})
-        
+
         filled_data = sample_frame.to_dicts()
         for row in filled_data:
             if row["age"] is None:
@@ -109,7 +107,7 @@ class TestTinyFrameOperations:
         """Test casting column types."""
         # Cast age to float
         sample_frame.cast_column("age", float)
-        
+
         # Check that age column is now float
         data = sample_frame.to_dicts()
         for row in data:
@@ -126,7 +124,7 @@ class TestTinyFrameOperations:
         """Test editing column values."""
         # Edit name column to uppercase
         sample_frame.edit_column("name", lambda x: x.upper() if x else x)
-        
+
         data = sample_frame.to_dicts()
         for row in data:
             if row["name"] is not None:
@@ -136,7 +134,7 @@ class TestTinyFrameOperations:
         """Test dropping columns."""
         original_shape = sample_frame.shape
         sample_frame.drop_columns(["score"])
-        
+
         new_shape = sample_frame.shape
         assert new_shape[0] == original_shape[0]  # Same number of rows
         assert new_shape[1] == original_shape[1] - 1  # One less column
@@ -144,7 +142,7 @@ class TestTinyFrameOperations:
     def test_rename_column(self, sample_frame):
         """Test renaming columns."""
         sample_frame.rename_column("name", "full_name")
-        
+
         data = sample_frame.to_dicts()
         for row in data:
             assert "full_name" in row
@@ -187,18 +185,18 @@ class TestTinyFrameComparison:
         """Test that basic operations work similarly to pandas."""
         # Create feathertail frame
         ft_frame = ft.TinyFrame.from_dicts(sample_records)
-        
+
         # Compare basic properties
         assert ft_frame.shape == sample_pandas_frame.shape
         assert ft_frame.len() == len(sample_pandas_frame)
-        
+
         # Compare data
         ft_data = ft_frame.to_dicts()
         pd_data = sample_pandas_frame.to_dict("records")
-        
+
         # Check that we have the same number of records
         assert len(ft_data) == len(pd_data)
-        
+
         # Check that all keys are present
         ft_keys = set(ft_data[0].keys()) if ft_data else set()
         pd_keys = set(pd_data[0].keys()) if pd_data else set()

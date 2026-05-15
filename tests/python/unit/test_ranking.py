@@ -182,13 +182,16 @@ class TestRankingFunctions:
         data = [{"value": "string"}]
         frame = ft.TinyFrame.from_dicts(data)
 
-        with pytest.raises(TypeError, match="Ranking only supported on numeric columns"):
+        with pytest.raises(
+            TypeError, match="Ranking only supported on numeric columns"
+        ):
             frame.rank("value", "average")
 
     def test_rank_empty_frame(self):
         """Test ranking with empty frame"""
-        data = []
-        frame = ft.TinyFrame.from_dicts([{"value": 1.0}]).filter("value", ">", 10)  # Create empty frame with schema
+        frame = ft.TinyFrame.from_dicts([{"value": 1.0}]).filter(
+            "value", ">", 10
+        )  # Create empty frame with schema
 
         result = frame.rank("value", "average")
 
@@ -289,7 +292,9 @@ class TestRankingFunctions:
         pct_changes = self.get_column_data(result, "value_pct_change")
         assert pct_changes[0] is None
         assert pct_changes[1] is None  # Division by zero (0.0 -> 10.0)
-        assert abs(pct_changes[2] - (-100.0)) < 0.001  # (0.0 - 10.0) / 10.0 * 100 = -100%
+        assert (
+            abs(pct_changes[2] - (-100.0)) < 0.001
+        )  # (0.0 - 10.0) / 10.0 * 100 = -100%
 
     def test_pct_change_nonexistent_column(self):
         """Test percentage change with non-existent column"""
@@ -304,13 +309,16 @@ class TestRankingFunctions:
         data = [{"value": "string"}]
         frame = ft.TinyFrame.from_dicts(data)
 
-        with pytest.raises(TypeError, match="Percentage change only supported on numeric columns"):
+        with pytest.raises(
+            TypeError, match="Percentage change only supported on numeric columns"
+        ):
             frame.pct_change("value")
 
     def test_pct_change_empty_frame(self):
         """Test percentage change with empty frame"""
-        data = []
-        frame = ft.TinyFrame.from_dicts([{"value": 1.0}]).filter("value", ">", 10)  # Create empty frame with schema
+        frame = ft.TinyFrame.from_dicts([{"value": 1.0}]).filter(
+            "value", ">", 10
+        )  # Create empty frame with schema
 
         result = frame.pct_change("value")
 

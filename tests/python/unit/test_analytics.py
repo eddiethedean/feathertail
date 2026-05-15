@@ -2,6 +2,7 @@ import pytest
 import math
 from feathertail import TinyFrame
 
+
 @pytest.fixture
 def sample_numeric_frame():
     """Create a sample frame with numeric data for testing."""
@@ -13,6 +14,7 @@ def sample_numeric_frame():
         {"id": 5, "value": 12.8, "score": 88.3, "count": 180},
     ]
     return TinyFrame.from_dicts(data)
+
 
 @pytest.fixture
 def sample_mixed_frame():
@@ -26,6 +28,7 @@ def sample_mixed_frame():
     ]
     return TinyFrame.from_dicts(data)
 
+
 @pytest.fixture
 def sample_with_nulls():
     """Create a sample frame with null values for testing."""
@@ -38,19 +41,20 @@ def sample_with_nulls():
     ]
     return TinyFrame.from_dicts(data)
 
+
 class TestDescriptiveStatistics:
     """Test descriptive statistics functions."""
 
     def test_describe_basic(self, sample_numeric_frame):
         """Test basic describe functionality."""
         result = sample_numeric_frame.describe()
-        
+
         assert result.len() == 8  # count, mean, std, min, 25%, 50%, 75%, max
         assert "statistic" in result.columns
         assert "value" in result.columns
         assert "score" in result.columns
         assert "count" in result.columns
-        
+
         # Check that statistic names are correct
         stats = list(result)
         stat_names = [row["statistic"] for row in stats]
@@ -60,7 +64,7 @@ class TestDescriptiveStatistics:
     def test_describe_numeric_columns_only(self, sample_mixed_frame):
         """Test that describe only includes numeric columns."""
         result = sample_mixed_frame.describe()
-        
+
         assert "age" in result.columns
         assert "salary" in result.columns
         assert "name" not in result.columns  # String column should be excluded
@@ -71,9 +75,11 @@ class TestDescriptiveStatistics:
         # Create empty frame with some columns but no data
         data = [{"value": None, "score": None}]
         frame = TinyFrame.from_dicts(data)
-        empty_frame = frame.filter("value", "!=", None)  # This will result in empty frame
+        empty_frame = frame.filter(
+            "value", "!=", None
+        )  # This will result in empty frame
         result = empty_frame.describe()
-        
+
         assert result.len() == 8  # Still has statistic names
         assert "statistic" in result.columns
         assert len(result.columns) == 1  # Only statistic column
@@ -90,7 +96,9 @@ class TestDescriptiveStatistics:
         # Create a frame with some numeric data, then filter to get empty
         data = [{"value": 1.0}, {"value": 2.0}]
         frame = TinyFrame.from_dicts(data)
-        empty_frame = frame.filter("value", ">", 10.0)  # This will result in empty frame
+        empty_frame = frame.filter(
+            "value", ">", 10.0
+        )  # This will result in empty frame
         skew_value = empty_frame.skew("value")
         assert skew_value == 0.0
 
@@ -112,7 +120,7 @@ class TestDescriptiveStatistics:
         q50 = sample_numeric_frame.quantile("value", 0.5)
         q25 = sample_numeric_frame.quantile("value", 0.25)
         q75 = sample_numeric_frame.quantile("value", 0.75)
-        
+
         assert isinstance(q50, float)
         assert isinstance(q25, float)
         assert isinstance(q75, float)
@@ -122,7 +130,7 @@ class TestDescriptiveStatistics:
         """Test quantile with invalid range."""
         with pytest.raises(ValueError):
             sample_numeric_frame.quantile("value", -0.1)
-        
+
         with pytest.raises(ValueError):
             sample_numeric_frame.quantile("value", 1.1)
 
@@ -131,8 +139,10 @@ class TestDescriptiveStatistics:
         # Create a frame with some numeric data, then filter to get empty
         data = [{"value": 1.0}, {"value": 2.0}]
         frame = TinyFrame.from_dicts(data)
-        empty_frame = frame.filter("value", ">", 10.0)  # This will result in empty frame
-        
+        empty_frame = frame.filter(
+            "value", ">", 10.0
+        )  # This will result in empty frame
+
         with pytest.raises(ValueError):
             empty_frame.quantile("value", 0.5)
 
@@ -199,18 +209,19 @@ class TestDescriptiveStatistics:
         # Should count non-null unique values
         assert unique_count == 3  # 10.5, 8.7, 22.1
 
+
 class TestCorrelationFunctions:
     """Test correlation and covariance functions."""
 
     def test_corr_basic(self, sample_numeric_frame):
         """Test basic correlation matrix."""
         result = sample_numeric_frame.corr()
-        
+
         assert "column" in result.columns
         assert "value" in result.columns
         assert "score" in result.columns
         assert "count" in result.columns
-        
+
         # Check that diagonal correlations are 1.0
         rows = list(result)
         for row in rows:
@@ -227,7 +238,7 @@ class TestCorrelationFunctions:
         ]
         frame = TinyFrame.from_dicts(data)
         result = frame.corr()
-        
+
         assert "column" in result.columns
         assert "value" in result.columns
         assert "score" in result.columns
@@ -237,7 +248,7 @@ class TestCorrelationFunctions:
         data = [{"value": 1.0, "score": 2.0}]
         frame = TinyFrame.from_dicts(data)
         result = frame.corr()
-        
+
         # Should still work but with limited data
         assert "column" in result.columns
 
@@ -255,7 +266,7 @@ class TestCorrelationFunctions:
     def test_cov_basic(self, sample_numeric_frame):
         """Test basic covariance matrix."""
         result = sample_numeric_frame.cov()
-        
+
         assert "column" in result.columns
         assert "value" in result.columns
         assert "score" in result.columns
@@ -271,6 +282,7 @@ class TestCorrelationFunctions:
         with pytest.raises(KeyError):
             sample_numeric_frame.cov_with("nonexistent", "value")
 
+
 class TestAnalyticsEdgeCases:
     """Test edge cases for analytics functions."""
 
@@ -278,13 +290,13 @@ class TestAnalyticsEdgeCases:
         """Test analytics with single value column."""
         data = [{"value": 42.0} for _ in range(5)]
         frame = TinyFrame.from_dicts(data)
-        
+
         # These should handle single values gracefully
         skew = frame.skew("value")
         kurtosis = frame.kurtosis("value")
         mode = frame.mode("value")
         nunique = frame.nunique("value")
-        
+
         assert isinstance(skew, float)
         assert isinstance(kurtosis, float)
         assert mode == 42.0
@@ -294,39 +306,40 @@ class TestAnalyticsEdgeCases:
         """Test analytics with constant column."""
         data = [{"value": 10.0} for _ in range(10)]
         frame = TinyFrame.from_dicts(data)
-        
+
         # Skewness and kurtosis should be 0 for constant data
         skew = frame.skew("value")
         kurtosis = frame.kurtosis("value")
-        
+
         assert abs(skew) < 1e-10
         assert abs(kurtosis) < 1e-10
 
     def test_large_dataset(self):
         """Test analytics with larger dataset."""
         import random
+
         random.seed(42)  # For reproducible tests
-        
+
         data = [
             {
                 "value": random.uniform(0, 100),
                 "score": random.uniform(0, 100),
-                "count": random.randint(1, 1000)
+                "count": random.randint(1, 1000),
             }
             for _ in range(100)
         ]
         frame = TinyFrame.from_dicts(data)
-        
+
         # All functions should work with larger datasets
         result = frame.describe()
         assert result.len() == 8
-        
+
         corr_result = frame.corr()
         assert "column" in corr_result.columns
-        
+
         skew = frame.skew("value")
         assert isinstance(skew, float)
-        
+
         kurtosis = frame.kurtosis("value")
         assert isinstance(kurtosis, float)
 
@@ -338,11 +351,11 @@ class TestAnalyticsEdgeCases:
         assert "salary" in result.columns
         assert "name" not in result.columns
         assert "active" not in result.columns
-        
+
         # String and boolean columns should work with mode and nunique
         name_mode = sample_mixed_frame.mode("name")
         assert isinstance(name_mode, str)
-        
+
         active_nunique = sample_mixed_frame.nunique("active")
         assert active_nunique == 2  # True and False
 
@@ -351,22 +364,22 @@ class TestAnalyticsEdgeCases:
         # Test with non-existent column
         with pytest.raises(KeyError):
             sample_numeric_frame.skew("nonexistent")
-        
+
         with pytest.raises(KeyError):
             sample_numeric_frame.kurtosis("nonexistent")
-        
+
         with pytest.raises(KeyError):
             sample_numeric_frame.quantile("nonexistent", 0.5)
-        
+
         with pytest.raises(KeyError):
             sample_numeric_frame.mode("nonexistent")
-        
+
         with pytest.raises(KeyError):
             sample_numeric_frame.nunique("nonexistent")
-        
+
         with pytest.raises(KeyError):
             sample_numeric_frame.corr_with("nonexistent", "value")
-        
+
         with pytest.raises(KeyError):
             sample_numeric_frame.cov_with("nonexistent", "value")
 
@@ -375,12 +388,14 @@ class TestAnalyticsEdgeCases:
         # Create empty frame with some columns but no data
         data = [{"value": None, "score": None}]
         frame = TinyFrame.from_dicts(data)
-        empty_frame = frame.filter("value", "!=", None)  # This will result in empty frame
-        
+        empty_frame = frame.filter(
+            "value", "!=", None
+        )  # This will result in empty frame
+
         # These should handle empty frames gracefully
         result = empty_frame.describe()
         assert result.len() == 8  # Statistic names only
-        
+
         corr_result = empty_frame.corr()
         assert "column" in corr_result.columns
         assert corr_result.len() == 0  # No numeric columns

@@ -22,3 +22,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = []
+
+[tool.ty.environment]
+# Inline stubs for the maturin PyO3 module so `ty check` resolves `feathertail` without a wheel install.
+extra-paths = ["typings"]
